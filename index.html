@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="./manifest.json">
+    <title>FocusStudy - AI Powered YouTube Learner</title>
+    <!-- Yeh line favicon.ico 404 error ko aane se rokegi -->
+    <link rel="icon" href="data:,">
+    <style>
+        /* CSS for a professional and clean UI */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 100px 20px 50px 20px;
+            margin: 0;
+        }
+
+        .container {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 950px;
+        }
+
+        h2 {
+            text-align: center;
+            color: #333;
+            margin-top: 0;
+            margin-bottom: 25px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .subject-select {
+            padding: 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            background-color: #f8fafc;
+            color: #334155;
+            transition: border-color 0.3s;
+            min-width: 180px;
+            cursor: pointer;
+        }
+        .subject-select:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+        }
+
+        button {
+            padding: 14px 28px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+        
+        button:active {
+            transform: scale(0.98);
+        }
+
+        /* 16:9 Aspect Ratio for Video */
+        .video-wrapper {
+            position: relative;
+            padding-bottom: 56.25%; 
+            height: 0;
+            overflow: hidden;
+            border-radius: 10px;
+            background-color: #000;
+            display: none; /* Hidden until a video is loaded */
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .video-wrapper iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+
+        .error-msg {
+            color: #dc3545;
+            background-color: #f8d7da;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            display: none;
+            margin-bottom: 20px;
+            font-size: 15px;
+        }
+
+        /* Corner Timer & Fullscreen Button Styles */
+        .corner-timer {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #4facfe;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 16px;
+            font-weight: bold;
+            font-family: monospace;
+            z-index: 5;
+            pointer-events: none;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            transition: color 0.3s;
+        }
+
+        .fullscreen-btn { position: absolute; top: 15px; right: 15px; background: rgba(0, 0, 0, 0.6); color: white; border: none; border-radius: 8px; width: 36px; height: 36px; display: flex; justify-content: center; align-items: center; font-size: 18px; cursor: pointer; z-index: 5; transition: all 0.3s; backdrop-filter: blur(5px); }
+        .fullscreen-btn:hover { background: rgba(0, 0, 0, 0.9); }
+        
+        .hidden-controls { opacity: 0 !important; pointer-events: none !important; }
+
+        /* Pomodoro Break Overlay Styles */
+        .break-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            display: none; /* Hidden during study phase */
+        }
+        .break-overlay h3 { font-size: 32px; margin: 0 0 10px 0; color: #ff4757; }
+        .break-overlay .timer-display { font-size: 55px; font-family: monospace; font-weight: bold; color: #4facfe; }
+        
+        .pomodoro-status {
+            text-align: center;
+            margin-top: 15px;
+            font-weight: 600;
+            color: #0056b3;
+            display: none;
+        }
+
+        /* Header & Settings Modal Styles */
+        .top-header { display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 15px 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box; position: fixed; top: 0; left: 0; z-index: 100; }
+        .top-header .logo { font-size: 24px; font-weight: bold; color: #8b5cf6; display: flex; align-items: center; gap: 10px; }
+        .settings-btn { background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s; font-size: 15px; }
+        .settings-btn:hover { background: #e2e8f0; color: #0f172a; }
+        .settings-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); z-index: 200; display: none; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        .settings-modal { background: #fff; padding: 30px; border-radius: 12px; width: 90%; max-width: 450px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .settings-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; }
+        .settings-header h3 { margin: 0; font-size: 20px; color: #1e293b; }
+        .close-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #94a3b8; transition: color 0.2s; }
+        .close-btn:hover { color: #ef4444; }
+        .settings-body label { display: block; margin-bottom: 10px; font-weight: 600; color: #475569; font-size: 14px; }
+        .settings-body input { width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; margin-bottom: 20px; box-sizing: border-box; font-size: 15px; transition: border-color 0.3s; }
+        .settings-body input:focus { border-color: #8b5cf6; outline: none; }
+        .settings-hint { font-size: 13px; color: #64748b; margin-top: 15px; text-align: center; }
+
+        /* AI Feature Styles */
+        .ai-section {
+            width: 100%;
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            display: none; /* Show only when video is active */
+        }
+        .ai-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .ai-header h3 { margin: 0; color: #2d3748; font-size: 18px; }
+        .summarize-btn { background-color: #8b5cf6; padding: 10px 20px; font-size: 14px; }
+        .summarize-btn:hover { background-color: #7c3aed; }
+        .summary-content {
+            background: #fff; padding: 25px; border-radius: 8px; border: 1px solid #cbd5e1;
+            font-size: 16px; line-height: 1.7; color: #334155; min-height: 60px;
+            text-align: left; overflow-x: auto;
+        }
+        /* Professional Markdown Note Styles */
+        .summary-content h1, .summary-content h2, .summary-content h3 { color: #0f172a; margin-top: 1.2em; margin-bottom: 0.5em; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; }
+        .summary-content h1:first-child, .summary-content h2:first-child { margin-top: 0; }
+        .summary-content ul, .summary-content ol { padding-left: 20px; margin-bottom: 15px; }
+        .summary-content li { margin-bottom: 8px; }
+        .summary-content strong { color: #1e293b; font-weight: 700; }
+        .summary-content pre { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; overflow-x: auto; font-family: Consolas, monospace; }
+        .summary-content code { background: #f1f5f9; padding: 3px 6px; border-radius: 4px; font-family: Consolas, monospace; color: #db2777; font-size: 14.5px; }
+        .summary-content pre code { background: transparent; padding: 0; color: #334155; }
+        .summary-content blockquote { border-left: 4px solid #8b5cf6; background: #f5f3ff; margin: 15px 0; padding: 10px 15px; color: #555; border-radius: 0 8px 8px 0; font-style: italic; }
+        .loader {
+            border: 3px solid #f3f3f3; border-top: 3px solid #8b5cf6; border-radius: 50%;
+            width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .save-btn { background-color: #10b981; }
+        .save-btn:hover { background-color: #059669; }
+
+        /* Explain Screen Modal Styles */
+        .explain-btn { position: absolute; top: 15px; right: 60px; background: rgba(139, 92, 246, 0.8); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; width: 36px; height: 36px; display: flex; justify-content: center; align-items: center; font-size: 18px; cursor: pointer; z-index: 5; transition: all 0.3s; backdrop-filter: blur(5px); }
+        .explain-btn:hover { background: rgba(139, 92, 246, 1); transform: scale(1.1); }
+        .explain-modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 20; display: none; justify-content: center; align-items: center; backdrop-filter: blur(8px); }
+        .explain-modal { background: #fff; width: 85%; max-width: 700px; max-height: 85%; border-radius: 12px; padding: 25px; overflow-y: auto; color: #334155; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: left; }
+        .explain-modal-close { position: absolute; top: 15px; right: 15px; background: #ef4444; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+        .explain-modal-close:hover { background: #dc2626; }
+
+        /* Interactive Quiz Styles */
+        .quiz-container { margin-top: 20px; background: #fff; color: #333; padding: 25px; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%; box-sizing: border-box; text-align: left; display: none; }
+        .quiz-container h4 { margin-top: 0; color: #0f172a; font-size: 18px; }
+        .quiz-option { display: block; width: 100%; padding: 12px 15px; margin: 8px 0; background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 6px; cursor: pointer; text-align: left; font-size: 15.5px; transition: all 0.2s; color: #334155; }
+        .quiz-option:hover { background: #e2e8f0; }
+        .quiz-option.selected { border-color: #8b5cf6; background: #f5f3ff; font-weight: 600; color: #1e293b; }
+        .quiz-btn { background: #10b981; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; margin-top: 15px; width: 100%; font-size: 16px; font-weight: bold; transition: background 0.3s; }
+        .quiz-btn:hover:not(:disabled) { background: #059669; }
+        .quiz-btn:disabled { background: #cbd5e1; cursor: not-allowed; }
+        .quiz-result-item { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #e2e8f0; font-size: 15px; }
+    </style>
+    <!-- Markdown Parser for Professional Notes Format -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+
+    <!-- Modern Top Header -->
+    <header class="top-header">
+        <div class="logo">🎓 FocusStudy</div>
+        <div>
+            <button id="installBtn" class="settings-btn" style="display: none; background: #10b981; color: white; border-color: #059669; margin-right: 10px;">⬇️ Install App</button>
+            <button class="settings-btn" onclick="openSettings()">⚙️ Settings</button>
+        </div>
+    </header>
+
+    <!-- API Key Settings Modal -->
+    <div class="settings-overlay" id="settingsOverlay">
+        <div class="settings-modal">
+            <div class="settings-header">
+                <h3>⚙️ AI Configuration</h3>
+                <button class="close-btn" onclick="closeSettings()">✖</button>
+            </div>
+            <div class="settings-body">
+                <label for="geminiApiKey">Gemini AI API Key</label>
+                <input type="password" id="geminiApiKey" placeholder="Enter Gemini API Key (Free Tier)">
+                <button class="save-btn" onclick="saveApiKey()" style="width: 100%;">Save & Apply Settings</button>
+                <p class="settings-hint">Required for Notes, Quiz & Explain features. Safely stored locally in your browser.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2 style="display: none;">Professional YouTube Player</h2>
+        
+        <div class="error-msg" id="errorMsg">Invalid YouTube URL. Please enter a valid link.</div>
+        
+        <div class="input-group">
+            <select id="subjectSelect" class="subject-select" title="Choose the subject for precise Bank Exam AI analysis">
+                <option value="General Banking">Select Subject</option>
+                <option value="Quantitative Aptitude (Quants)">Quantitative Aptitude (Quants)</option>
+                <option value="Data Interpretation (DI)">Data Interpretation (DI)</option>
+                <option value="Reasoning Ability">Reasoning Ability</option>
+                <option value="English Language">English Language</option>
+                <option value="General Awareness (GA)">General Awareness (GA)</option>
+                <option value="Computer Awareness">Computer Awareness</option>
+            </select>
+            <select id="levelSelect" class="subject-select" title="Choose Exam Level">
+                <option value="Prelims Level">Prelims Level</option>
+                <option value="Mains Level">Mains Level</option>
+                <option value="Prelims + Mains (Mixed)">Prelims + Mains (Mixed)</option>
+            </select>
+            <input type="text" id="youtubeUrl" placeholder="Paste YouTube link here (e.g., https://youtu.be/...)" onkeypress="if(event.key === 'Enter') playVideo()">
+            <button onclick="playVideo()">Play Video</button>
+        </div>
+        
+        <div class="video-wrapper" id="videoWrapper">
+            <!-- Corner Timer (Visible always on video) -->
+            <div id="cornerTimer" class="corner-timer">Focus: 25:00</div>
+            
+            <!-- Custom Fullscreen Button -->
+            <button id="customFsBtn" class="fullscreen-btn player-control-btn hidden-controls" onclick="toggleFullScreen()" title="Full Screen">⛶</button>
+
+            <!-- Explain Screen Button -->
+            <button id="explainBtn" class="explain-btn player-control-btn hidden-controls" onclick="explainCurrentScreen()" title="Explain what's on the screen">🧠</button>
+
+            <!-- Pomodoro Break Overlay -->
+            <div class="break-overlay" id="breakOverlay">
+                <h3>Take a Break!</h3>
+                <div class="timer-display" id="breakTimer">05:00</div>
+            </div>
+
+            <!-- AI Toast Notification -->
+            <div id="aiToast" style="position: fixed; bottom: 20px; right: 20px; background: #8b5cf6; color: white; padding: 10px 20px; border-radius: 8px; font-weight: bold; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.3); display: none; align-items: center; gap: 10px;">
+                <div class="loader" style="width: 16px; height: 16px; border-width: 2px;"></div>
+                <span>🧠 AI is analyzing screen...</span>
+            </div>
+
+            <!-- Explain Screen Modal -->
+            <div class="explain-modal-overlay" id="explainModalOverlay">
+                <div class="explain-modal">
+                    <button class="explain-modal-close" onclick="closeExplainModal()">✖</button>
+                    <h3 style="margin-top:0; color:#0f172a; border-bottom:2px solid #e2e8f0; padding-bottom:10px;">🧠 Concept Explanation</h3>
+                    <div id="explainModalContent" class="summary-content" style="border:none; padding:10px 0; min-height:100px;"></div>
+                </div>
+            </div>
+            <!-- The div where the YouTube API will inject the iframe -->
+            <div id="videoPlayer"></div>
+        </div>
+        
+        <div class="pomodoro-status" id="pomoStatus"></div>
+
+        <!-- AI Summary Section -->
+        <div class="ai-section" id="aiSection">
+            <div class="ai-header">
+                <h3>✨ AI Study Assistant</h3>
+                <div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; align-items: center;">
+                        <select id="timeRangeSelect" class="subject-select" style="padding: 8px; min-width: 150px; font-size: 14px;" onchange="toggleCustomTimeInputs()">
+                            <option value="25m">Last 25 Mins</option>
+                            <option value="custom">Custom Range (Max 30m)</option>
+                        </select>
+                        
+                        <div id="customTimeBox" style="display: none; align-items: center; gap: 5px;">
+                            <input type="text" id="customStartTime" placeholder="MM:SS" style="padding: 8px; width: 60px; font-size: 14px;">
+                            <span style="font-weight: 600;">to</span>
+                            <input type="text" id="customEndTime" placeholder="MM:SS" style="padding: 8px; width: 60px; font-size: 14px;">
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="summarize-btn" onclick="generateSummary()">📝 Notes</button>
+                        <button class="summarize-btn" style="background-color: #3b82f6;" onclick="generateQuiz()">🎯 Quiz</button>
+                    </div>
+                </div>
+            </div>
+            <div class="summary-content" id="summaryContent">
+                Video dekhte huye kisi bhi time par click karein, aur ab tak padhaye gaye topics ka quick summary yahan aa jayega!
+            </div>
+            
+            <!-- AI Auto-Generated Quiz Section -->
+            <div class="quiz-container" id="quizContainer">
+                <div id="quizLoading" style="display: none; text-align: center; padding: 20px;">
+                    <div class="loader"></div>
+                    <p style="margin-top: 15px; font-weight: 600; color: #555;" id="quizLoadingText">Generating Bank-Level Quiz...</p>
+                </div>
+                <div id="quizActive" style="display: none;">
+                    <h4 id="quizQuestion">Question 1</h4>
+                    <div id="quizOptions"></div>
+                    <button class="quiz-btn" id="nextQuizBtn" onclick="nextQuizQuestion()" disabled>Next Question</button>
+                </div>
+                <div id="quizResults" style="display: none;">
+                    <h4>✨ Quiz Results: <span id="quizScore" style="color: #8b5cf6;"></span></h4>
+                    <div id="quizSummary"></div>
+                    <button class="quiz-btn" onclick="closeQuiz()">Close Quiz</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Page load hone par purani API key wapas le aao
+        window.onload = () => {
+            const savedKey = localStorage.getItem('geminiApiKey');
+            if (savedKey) document.getElementById('geminiApiKey').value = savedKey;
+
+            // Auto-detect listener
+            document.getElementById('youtubeUrl').addEventListener('input', handleUrlInput);
+        };
+
+        let typingTimer;
+        async function handleUrlInput() {
+            clearTimeout(typingTimer);
+            typingTimer = setTimeout(async () => {
+                const url = document.getElementById('youtubeUrl').value.trim();
+                const apiKey = document.getElementById('geminiApiKey').value.trim();
+                const match = url.match(/(?:v=|embed\/|v\/|shorts\/|youtu\.be\/)([\w-]{11})/);
+                
+                if (match && match[1] && apiKey) {
+                    const videoId = match[1];
+                    const subjDropdown = document.getElementById('subjectSelect');
+                    const levelDropdown = document.getElementById('levelSelect');
+                    const origBorder = subjDropdown.style.borderColor;
+
+                    try {
+                        subjDropdown.style.borderColor = "#8b5cf6";
+                        levelDropdown.style.borderColor = "#8b5cf6";
+
+                        const res = await fetch(`/api/title?videoId=${videoId}`);
+                        const data = await res.json();
+                        
+                        if (data.title && data.title !== 'Unknown Video') {
+                            const prompt = `Act as a Bank Exam Classifier. I have a YouTube video title: "${data.title}".
+                            Classify it strictly into ONE of these exact subjects: "General Banking", "Quantitative Aptitude (Quants)", "Data Interpretation (DI)", "Reasoning Ability", "English Language", "General Awareness (GA)", "Computer Awareness".
+                            Also classify its level into ONE of these exact levels: "Prelims Level", "Mains Level", or "Prelims + Mains (Mixed)".
+                            
+                            Return ONLY a valid JSON object. Do not include any other text or markdown formatting.
+                            {"subject": "Exact Subject Name", "level": "Exact Level Name"}`;
+                            
+                            let aiRes = await executeGeminiPrompt(prompt, apiKey);
+                            aiRes = aiRes.replace(/```json/gi, '').replace(/```/g, '').trim();
+                            // Fix potential Gemini Markdown issues
+                            if(aiRes.startsWith('{') && aiRes.endsWith('}')) {
+                                const parsed = JSON.parse(aiRes);
+                                if (parsed.subject && parsed.subject !== "Select Subject") subjDropdown.value = parsed.subject;
+                                if (parsed.level) levelDropdown.value = parsed.level;
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Auto-detect failed:", e);
+                    } finally {
+                        subjDropdown.style.borderColor = origBorder;
+                        levelDropdown.style.borderColor = origBorder;
+                    }
+                }
+            }, 500); // 0.5 second debounce wait after pasting
+        }
+
+        async function executeGeminiPrompt(prompt, apiKey, base64Image = null) {
+            let modelToUse = "gemini-3.1-flash-lite"; // Default fallback
+            
+
+
+            // Prepare Payload
+            const payload = {
+                contents: [{
+                    parts: [{ text: prompt }]
+                }]
+            };
+
+            // If image is provided, append it to the parts
+            if (base64Image) {
+                const base64Data = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
+                payload.contents[0].parts.unshift({
+                    inline_data: {
+                        mime_type: "image/png",
+                        data: base64Data
+                    }
+                });
+            }
+
+            // Execute the prompt using the dynamically found model
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            
+            if (data.error) {
+                if (data.error.code === 404) {
+                    throw new Error("Aapki API Key mein Gemini models ka access nahi hai. Kripya Google AI Studio se ek nayi API Key banayein!");
+                }
+                throw new Error(data.error.message);
+            }
+            return data.candidates[0].content.parts[0].text;
+        }
+
+        // Load YouTube IFrame API
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        document.head.appendChild(tag);
+
+        let player;
+        
+        // PWA Installation Logic
+        let deferredPrompt;
+        const installBtn = document.getElementById('installBtn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent the mini-infobar from appearing on mobile
+            e.preventDefault();
+            // Stash the event so it can be triggered later.
+            deferredPrompt = e;
+            // Update UI notify the user they can install the PWA
+            installBtn.style.display = 'inline-block';
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                // Show the install prompt
+                deferredPrompt.prompt();
+                // Wait for the user to respond to the prompt
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    console.log('User accepted the install prompt');
+                } else {
+                    console.log('User dismissed the install prompt');
+                }
+                // We've used the prompt, and can't use it again, throw it away
+                deferredPrompt = null;
+                installBtn.style.display = 'none';
+            }
+        });
+        
+        window.addEventListener('appinstalled', () => {
+            installBtn.style.display = 'none';
+            alert("App installed successfully! 🎉");
+        });
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').then(registration => {
+                    console.log('ServiceWorker registration successful');
+                }).catch(err => {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+
+        // YouTube IFrame API Ready
+        function onYouTubeIframeAPIReady() {
+            // Player initialization happens dynamically when URL is entered
+        }
+
+        // Handle Keyboard Shortcuts for Video Seeking and Features
+        document.addEventListener('keydown', (e) => {
+            const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+            if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') return;
+            
+            if (e.ctrlKey && e.key.toLowerCase() === 'b') {
+                e.preventDefault();
+                toggleFullScreen();
+            } else if (e.key === '0') {
+                explainCurrentScreen();
+            } else if (player && typeof player.getCurrentTime === 'function' && typeof player.seekTo === 'function') {
+                if (e.key === 'ArrowLeft') {
+                    player.seekTo(player.getCurrentTime() - 5, true);
+                    showControls();
+                } else if (e.key === 'ArrowRight') {
+                    player.seekTo(player.getCurrentTime() + 5, true);
+                    showControls();
+                }
+            }
+        });
+
+        // Auto-hide controls logic
+        let controlsTimeout;
+        const videoWrapperElement = document.getElementById('videoWrapper');
+        
+        function showControls() {
+            document.querySelectorAll('.player-control-btn').forEach(btn => btn.classList.remove('hidden-controls'));
+            clearTimeout(controlsTimeout);
+            controlsTimeout = setTimeout(() => {
+                document.querySelectorAll('.player-control-btn').forEach(btn => btn.classList.add('hidden-controls'));
+            }, 2500); // Hide after 2.5s of inactivity
+        }
+
+        videoWrapperElement.addEventListener('mousemove', showControls);
+        videoWrapperElement.addEventListener('click', showControls);
+        videoWrapperElement.addEventListener('mouseleave', () => {
+            clearTimeout(controlsTimeout);
+            document.querySelectorAll('.player-control-btn').forEach(btn => btn.classList.add('hidden-controls'));
+        });
+
+        let pomoInterval;
+        let isBreakPhase = false;
+        let timeLeft = 25 * 60; // 25 minutes in seconds
+
+        async function fetchTranscriptText(videoId, startTime, endTime) {
+            try {
+                const res = await fetch(`/api/transcript?videoId=${videoId}`);
+                if (!res.ok) return null;
+                const data = await res.json();
+                if (!data.transcript) return null;
+
+                let textChunks = [];
+                for (const item of data.transcript) {
+                    // youtube-transcript returns offset in milliseconds, we need seconds
+                    const offsetMs = parseFloat(item.offset) || 0;
+                    const offsetSeconds = offsetMs / 1000;
+                    
+                    if (offsetSeconds >= startTime && offsetSeconds <= endTime) {
+                        textChunks.push(item.text);
+                    }
+                }
+                return textChunks.join(' ').replace(/&amp;/g, '&').replace(/&#39;/g, "'");
+            } catch (err) {
+                console.error("Transcript fetch error:", err);
+                return null;
+            }
+        }
+
+        // Listen for user pasting a screenshot (Ctrl+V)
+        document.addEventListener('paste', async (e) => {
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            let imageFile = null;
+            for (let item of items) {
+                if (item.type.indexOf('image') === 0) {
+                    imageFile = item.getAsFile();
+                    break;
+                }
+            }
+
+            if (imageFile) {
+                // Convert image file to base64
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const base64Image = event.target.result.split(',')[1];
+                    // Trigger explanation directly with pasted image
+                    explainCurrentScreen(base64Image);
+                };
+                reader.readAsDataURL(imageFile);
+            }
+        });
+
+        function playVideo() {
+            const urlInput = document.getElementById('youtubeUrl').value.trim();
+            const errorMsg = document.getElementById('errorMsg');
+            const videoWrapper = document.getElementById('videoWrapper');
+
+            // Trigger auto-detect if not selected yet
+            const subjDropdown = document.getElementById('subjectSelect');
+            if (subjDropdown.value === "General Banking") {
+                handleUrlInput();
+            }
+
+            if (!urlInput) {
+                showError("Please enter a YouTube URL.");
+                return;
+            }
+
+            const regex = /(?:https?:\/\/)?(?:[a-zA-Z0-9-]+\.)?(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|v\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/;
+            const match = urlInput.match(regex);
+
+            if (match && match[1]) {
+                const videoId = match[1];
+                
+                // Hide error message
+                errorMsg.style.display = 'none';
+                videoWrapper.style.display = 'block';
+                document.getElementById('aiSection').style.display = 'block';
+                
+                // Use YouTube API to load/play video dynamically
+                if (player) {
+                    player.loadVideoById(videoId);
+                } else {
+                    player = new YT.Player('videoPlayer', {
+                        height: '100%',
+                        width: '100%',
+                        videoId: videoId,
+                        // 'fs': 0 hides native youtube fullscreen button so users use our custom one
+                        playerVars: { 'autoplay': 1, 'rel': 0, 'fs': 0 }
+                    });
+                }
+                
+                startPomodoro();
+            } else {
+                showError("Invalid YouTube URL. Please enter a valid link.");
+            }
+        }
+
+        function startPomodoro() {
+            clearInterval(pomoInterval);
+            isBreakPhase = false;
+            timeLeft = 25 * 60; // Start with 25 mins
+            
+            document.getElementById('breakOverlay').style.display = 'none';
+            const statusEl = document.getElementById('pomoStatus');
+            statusEl.style.display = 'block';
+
+            pomoInterval = setInterval(() => {
+                timeLeft--;
+                
+                if (timeLeft <= 0) {
+                    if (isBreakPhase) {
+                        // Break over -> Switch to Work
+                        isBreakPhase = false;
+                        timeLeft = 25 * 60;
+                        document.getElementById('breakOverlay').style.display = 'none';
+                        document.getElementById('quizContainer').style.display = 'none'; // Hide quiz
+                        if (player && typeof player.playVideo === 'function') player.playVideo();
+                    } else {
+                        // Work over -> Switch to Break
+                        isBreakPhase = true;
+                        timeLeft = 5 * 60;
+                        document.getElementById('breakOverlay').style.display = 'flex';
+                        if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
+                        generateQuiz(); // Auto trigger Quiz when Focus ends
+                    }
+                }
+
+                // Update UI Timers
+                const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+                const s = (timeLeft % 60).toString().padStart(2, '0');
+                
+                if (isBreakPhase) {
+                    document.getElementById('breakTimer').textContent = `${m}:${s}`;
+                    statusEl.textContent = `Break time active... Recharging!`;
+                    
+                    // Update corner timer for break
+                    const cornerTimer = document.getElementById('cornerTimer');
+                    cornerTimer.textContent = `Break: ${m}:${s}`;
+                    cornerTimer.style.color = '#ff4757'; 
+                } else {
+                    statusEl.textContent = `Study Focus: ${m}:${s} remaining until break`;
+                    
+                    // Update corner timer for focus
+                    const cornerTimer = document.getElementById('cornerTimer');
+                    cornerTimer.textContent = `Focus: ${m}:${s}`;
+                    cornerTimer.style.color = '#4facfe';
+                }
+            }, 1000);
+        }
+
+        function toggleFullScreen() {
+            const videoWrapper = document.getElementById('videoWrapper');
+            if (!document.fullscreenElement) {
+                if (videoWrapper.requestFullscreen) {
+                    videoWrapper.requestFullscreen();
+                } else if (videoWrapper.webkitRequestFullscreen) { /* Safari */
+                    videoWrapper.webkitRequestFullscreen();
+                } else if (videoWrapper.msRequestFullscreen) { /* IE11 */
+                    videoWrapper.msRequestFullscreen();
+                }
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+                else if (document.msExitFullscreen) document.msExitFullscreen();
+            }
+        }
+
+        document.addEventListener('fullscreenchange', () => {
+            const fsBtn = document.getElementById('customFsBtn');
+            if (document.fullscreenElement) {
+                fsBtn.innerHTML = '✖';
+                fsBtn.title = 'Exit Fullscreen';
+            } else {
+                fsBtn.innerHTML = '⛶';
+                fsBtn.title = 'Full Screen';
+            }
+        });
+
+        // Settings Modal Logic
+        function openSettings() { document.getElementById('settingsOverlay').style.display = 'flex'; }
+        function closeSettings() { document.getElementById('settingsOverlay').style.display = 'none'; }
+
+        function saveApiKey() {
+            const key = document.getElementById('geminiApiKey').value.trim();
+            if (key) {
+                localStorage.setItem('geminiApiKey', key);
+                alert("✅ AI Settings Saved Successfully! Ab aap AI features ka use kar sakte hain.");
+                closeSettings(); // Auto-close modal after save
+            } else {
+                alert("Please enter a valid API key.");
+            }
+        }
+
+        function toggleCustomTimeInputs() {
+            const select = document.getElementById('timeRangeSelect');
+            const box = document.getElementById('customTimeBox');
+            if (select.value === 'custom') {
+                box.style.display = 'flex';
+            } else {
+                box.style.display = 'none';
+            }
+        }
+
+        function timeToSeconds(timeStr) {
+            const parts = timeStr.split(':');
+            if (parts.length === 2) {
+                return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+            }
+            return parseInt(timeStr, 10) || 0;
+        }
+
+        async function generateSummary() {
+            const apiKey = document.getElementById('geminiApiKey').value.trim();
+            if (!apiKey) {
+                alert("Boss, pehle upar wale box mein apni Gemini API key daalkar Save kijiye!");
+                return;
+            }
+            if (!player || typeof player.getCurrentTime !== 'function') {
+                alert("Pehle video play kijiye!");
+                return;
+            }
+
+            const summaryContent = document.getElementById('summaryContent');
+            
+            // Remove the default instruction text if it's the first time
+            if (summaryContent.innerText.includes("Video dekhte huye kisi bhi time par")) {
+                summaryContent.innerHTML = '';
+            }
+
+            const currentTime = player.getCurrentTime();
+            let startTime, endTime;
+            const timeRange = document.getElementById('timeRangeSelect').value;
+
+            if (timeRange === 'custom') {
+                const s = document.getElementById('customStartTime').value.trim();
+                const e = document.getElementById('customEndTime').value.trim();
+                startTime = timeToSeconds(s);
+                endTime = timeToSeconds(e) || player.getDuration();
+                
+                if (endTime <= startTime) {
+                    alert("Start time must be before End time.");
+                    return;
+                }
+                if ((endTime - startTime) > (30 * 60)) {
+                    alert("Custom range cannot exceed 30 minutes! Please reduce the time gap.");
+                    return;
+                }
+            } else { // default '25m'
+                startTime = Math.max(0, currentTime - (25 * 60));
+                endTime = currentTime;
+            }
+
+            const endMins = Math.floor(endTime / 60).toString().padStart(2, '0');
+            const endSecs = Math.floor(endTime % 60).toString().padStart(2, '0');
+            const startMins = Math.floor(startTime / 60).toString().padStart(2, '0');
+            const startSecs = Math.floor(startTime % 60).toString().padStart(2, '0');
+            
+            const url = document.getElementById('youtubeUrl').value;
+            const subject = document.getElementById('subjectSelect').value;
+            const level = document.getElementById('levelSelect').value;
+
+            // Create a new div to append so previous summaries are saved on screen
+            const newSummaryDiv = document.createElement('div');
+            newSummaryDiv.style.borderBottom = "2px dashed #cbd5e1";
+            newSummaryDiv.style.paddingBottom = "15px";
+            newSummaryDiv.style.marginBottom = "15px";
+            newSummaryDiv.innerHTML = `<div style="display: flex; align-items: center; gap: 10px; color: #8b5cf6; font-weight: bold;"><div class="loader"></div><span>Dimag laga raha hu (Fetching Transcript & Summary for ${startMins}:${startSecs} to ${endMins}:${endSecs})...</span></div>`;
+            summaryContent.appendChild(newSummaryDiv);
+
+            // Fetch transcript from local backend
+            let videoId;
+            try { videoId = player.getVideoData().video_id; } catch(e) {}
+            if (!videoId) {
+                const match = url.match(/(?:v=|embed\/|v\/|shorts\/|youtu\.be\/)([\w-]{11})/);
+                videoId = match ? match[1] : null;
+            }
+
+            const transcriptText = videoId ? await fetchTranscriptText(videoId, startTime, endTime) : null;
+            
+            let promptContext = `video URL: ${url}`;
+            if (transcriptText && transcriptText.trim().length > 10) {
+                promptContext = `video transcript for this exact timeframe:\n"${transcriptText}"`;
+            } else {
+                newSummaryDiv.innerHTML = `<div style="display: flex; align-items: center; gap: 10px; color: #f59e0b; font-weight: bold;"><span>⚠️ Transcript nahi mili, URL ke base par general answer generate kar raha hu...</span></div>`;
+            }
+
+            // Advanced Gemini prompt targeting specifically the 25 min window
+            const prompt = `You are an expert Bank PO study assistant. I am studying a YouTube video for Bank Exams. The specific subject is: **${subject}** and the target level is: **${level}**. Generate high-quality, deep analysis study notes SPECIFICALLY for the content covered between ${startMins} minutes ${startSecs} seconds to ${endMins} minutes ${endSecs} seconds based on this ${promptContext}.
+            
+            CRITICAL INSTRUCTIONS:
+            1. Language: STRICTLY use 'Hinglish' (e.g., 'Is concept ka main logic ye hai ki...').
+            2. Structure & Alignment: Format the output strictly in Professional Markdown.
+               - Use '##' for Main Headings (e.g., ## Topic Overview) and '###' for Sub-headings.
+               - Use bullet points (-) with proper indentation for concepts and features.
+               - Highlight key terms using **bold**.
+               - Use blockquotes (>) for special "Bank Exam Tricks", logic short-cuts, or "dhyan dene wali baatein".
+            3. Sums, Math & Code: Agar koi sums, mathematical formula, ya logic steps hain, toh unhe STRICTLY code blocks (\`\`\`math ya \`\`\`) ke andar likho taaki wo alag se highlight ho sakein. Ensure examples reflect REAL Bank Exam (IBPS/SBI) Previous Year Questions (PYQs).
+            4. Sections Expected: Start with a 'Topic Overview', then 'Deep Concept Analysis' (step-by-step), followed by 'Shortcut Tricks & Logic', and end with 'Quick Takeaways'. Notes ekdum polished lagne chahiye.`;
+
+            try {
+                const rawText = await executeGeminiPrompt(prompt, apiKey);
+                // Add a timestamp heading before the generated notes
+                const timeHeader = `\n\n### ⏱ Notes: ${startMins}:${startSecs} se ${endMins}:${endSecs} tak\n`;
+                // Use marked.js to convert Markdown into clean, aligned HTML
+                newSummaryDiv.innerHTML = marked.parse(timeHeader + rawText);
+            } catch (err) {
+                newSummaryDiv.innerHTML = `<span style="color: red;">Oops, kuch gadbad ho gayi: ${err.message}</span>`;
+            }
+        }
+
+        /* --- Auto Interactive Quiz Logic --- */
+        let quizData = [];
+        let currentQuizIndex = 0;
+        let quizScore = 0;
+        let quizSelectedOption = -1;
+
+        async function generateQuiz() {
+            const apiKey = document.getElementById('geminiApiKey').value.trim();
+            if (!apiKey || !player || typeof player.getCurrentTime !== 'function') return;
+
+            const quizContainer = document.getElementById('quizContainer');
+            const quizLoading = document.getElementById('quizLoading');
+            const quizActive = document.getElementById('quizActive');
+            const quizResults = document.getElementById('quizResults');
+            
+            quizContainer.style.display = 'block';
+            quizLoading.style.display = 'block';
+            quizActive.style.display = 'none';
+            quizResults.style.display = 'none';
+
+            // Smoothly scroll down to the quiz container
+            quizContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            const currentTime = player.getCurrentTime();
+            const startTime = Math.max(0, currentTime - (25 * 60));
+            const endMins = Math.floor(currentTime / 60).toString().padStart(2, '0');
+            const endSecs = Math.floor(currentTime % 60).toString().padStart(2, '0');
+            const startMins = Math.floor(startTime / 60).toString().padStart(2, '0');
+            const startSecs = Math.floor(startTime % 60).toString().padStart(2, '0');
+            const url = document.getElementById('youtubeUrl').value;
+            const subject = document.getElementById('subjectSelect').value;
+            const level = document.getElementById('levelSelect').value;
+
+            document.getElementById('quizLoadingText').innerText = `Generating ${level} Quiz from ${startMins}:${startSecs} to ${endMins}:${endSecs}...`;
+
+            // Fetch transcript from local backend
+            let videoId;
+            try { videoId = player.getVideoData().video_id; } catch(e) {}
+            if (!videoId) {
+                const match = url.match(/(?:v=|embed\/|v\/|shorts\/|youtu\.be\/)([\w-]{11})/);
+                videoId = match ? match[1] : null;
+            }
+
+            const transcriptText = videoId ? await fetchTranscriptText(videoId, startTime, currentTime) : null;
+            
+            let promptContext = `(URL: ${url})`;
+            if (transcriptText && transcriptText.trim().length > 10) {
+                promptContext = `based on this video transcript:\n"${transcriptText}"`;
+            }
+
+            const prompt = `I am studying a YouTube video for Bank PO / Clerk Exams. The subject is: **${subject}** and target exam level is: **${level}**. Based SPECIFICALLY on the video content from ${startMins}:${startSecs} to ${endMins}:${endSecs} ${promptContext}, generate a 10-question multiple-choice quiz.
+            
+            CRITICAL BANKING EXAM INSTRUCTIONS:
+            1. Exam Pattern & Level: Frame questions strictly matching the **${level}** difficulty. Questions MUST be identical to REAL Bank Exam (IBPS/SBI PO/Clerk) Previous Year Questions (PYQs).
+               - If Prelims: Focus on speed, standard DI (Table, Bar, Pie), and direct arithmetic/logic.
+               - If Mains: Focus on deep logic, twisted DI (Caselet, Mixed, Radar, Missing Data), and multi-step reasoning.
+               - If Prelims + Mains (Mixed): Provide a balanced 50-50 mix of both speed-based (Prelims) and deep logical/twisted (Mains) questions.
+               - Reasoning: Logic-heavy, variable-based, or 'Only a few' syllogism.
+               - English: Contextual reading, error detection.
+               - GA/Computer: Deep statement-based (1 & 2 correct) or core static questions.
+            2. Question Framing (Golden Rules for Quants/DI): ALWAYS use these exact structures: 'Find the ratio of X to Y', 'X is what percent more or less than Y?', 'Find the average of...', or 'Logical Condition: If X increases by...'.
+            3. Options Format: MUST have EXACTLY 5 options (A, B, C, D, E) per question. Use 'None of these' or 'Cannot be determined' where appropriate.
+            4. Explanation Format: Explain the deep logic AND provide a shortcut/trick STRICTLY IN 'ENGLISH'. Do NOT use Hinglish for the quiz.
+            5. Output Format: YOU MUST RETURN ONLY A VALID JSON ARRAY. No markdown, no intro text.
+            
+            JSON Structure Expected:
+            [
+                {
+                    "question": "Question text here?",
+                    "options": ["Option A", "Option B", "Option C", "Option D", "Option E"],
+                    "correctIndex": 0,
+                    "explanation": "Detailed logic and fast-solving Trick in English."
+                }
+            ]`;
+
+            try {
+                let rawText = await executeGeminiPrompt(prompt, apiKey);
+                // Clean AI response to extract exact JSON
+                rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+                
+                quizData = JSON.parse(rawText);
+                currentQuizIndex = 0;
+                quizScore = 0;
+                
+                quizLoading.style.display = 'none';
+                quizActive.style.display = 'block';
+                renderQuizQuestion();
+            } catch (err) {
+                quizLoading.innerHTML = `<span style="color: #ef4444; font-weight: bold;">Quiz load nahi ho paya (Sayad error hai): ${err.message}</span>`;
+            }
+        }
+
+        function renderQuizQuestion() {
+            if (currentQuizIndex >= quizData.length) {
+                showQuizResults();
+                return;
+            }
+            
+            const q = quizData[currentQuizIndex];
+            document.getElementById('quizQuestion').innerHTML = `<strong>Q${currentQuizIndex + 1}/10:</strong> ${q.question}`;
+            
+            const optionsDiv = document.getElementById('quizOptions');
+            optionsDiv.innerHTML = '';
+            quizSelectedOption = -1;
+            document.getElementById('nextQuizBtn').disabled = true;
+            document.getElementById('nextQuizBtn').innerText = currentQuizIndex === quizData.length - 1 ? 'Submit & View Results' : 'Next Question';
+
+            q.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'quiz-option';
+                btn.innerText = `${String.fromCharCode(65 + idx)}) ${opt}`; // Adds A) B) C) D) format
+                btn.onclick = () => {
+                    Array.from(optionsDiv.children).forEach(c => c.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    quizSelectedOption = idx;
+                    document.getElementById('nextQuizBtn').disabled = false;
+                };
+                optionsDiv.appendChild(btn);
+            });
+        }
+
+        function nextQuizQuestion() {
+            const q = quizData[currentQuizIndex];
+            q.userAnswer = quizSelectedOption;
+            if (quizSelectedOption === q.correctIndex) quizScore++;
+            currentQuizIndex++;
+            renderQuizQuestion();
+        }
+
+        function showQuizResults() {
+            document.getElementById('quizActive').style.display = 'none';
+            document.getElementById('quizResults').style.display = 'block';
+            document.getElementById('quizScore').innerText = `${quizScore} / ${quizData.length}`;
+            
+            let summaryHTML = '';
+            quizData.forEach((q, i) => {
+                const isCorrect = q.userAnswer === q.correctIndex;
+                summaryHTML += `
+                    <div class="quiz-result-item">
+                        <p style="margin-top: 0; color: #1e293b;"><strong>Q${i+1}: ${q.question}</strong></p>
+                        <p style="color: ${isCorrect ? '#10b981' : '#ef4444'}; margin: 5px 0; font-weight: 500;">
+                            Your Answer: ${q.options[q.userAnswer] || 'Unanswered'} ${isCorrect ? '✅' : '❌'}
+                        </p>
+                        ${!isCorrect ? `<p style="color: #10b981; margin: 5px 0; font-weight: 500;">Correct Answer: ${q.options[q.correctIndex]}</p>` : ''}
+                        <div style="background: #f1f5f9; padding: 10px; border-radius: 6px; margin-top: 8px; font-size: 14px; color: #475569;">
+                            <strong>Explanation:</strong> ${q.explanation}
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('quizSummary').innerHTML = summaryHTML;
+        }
+
+        function closeQuiz() { document.getElementById('quizContainer').style.display = 'none'; }
+
+
+        /* --- Explain Screen Feature --- */
+        async function explainCurrentScreen(pastedBase64 = null) {
+            const apiKey = document.getElementById('geminiApiKey').value.trim();
+            if (!apiKey) {
+                alert("Boss, pehle upar wale box mein apni Gemini API key daalkar Save kijiye!");
+                return;
+            }
+            
+            // If user clicked the button or pressed '0' instead of pasting
+            if (!pastedBase64) {
+                alert("AI Explanation ke liye:\n1. Apne keyboard se screenshot lein (e.g., Win + Shift + S)\n2. Aur yahan click karke 'Ctrl + V' (Paste) daba dein!\n\nYe sabse fast aur secure tarika hai bina video pause kiye.");
+                return;
+            }
+
+            if (player && typeof player.getCurrentTime === 'function') {
+                // Ensure player exists, but don't strictly block if it's paused
+            }
+            
+            // Show toast in the corner
+            const toast = document.getElementById('aiToast');
+            toast.style.display = 'flex';
+            
+            const base64Image = pastedBase64;
+
+            const url = document.getElementById('youtubeUrl').value;
+            const subject = document.getElementById('subjectSelect').value;
+            const level = document.getElementById('levelSelect').value;
+            
+            const overlay = document.getElementById('explainModalOverlay');
+            const content = document.getElementById('explainModalContent');
+            
+            const prompt = `Act as an expert Bank Exam (PO/Clerk) faculty. I have attached a screenshot of the video lesson I am currently studying (Subject: ${subject}, Level: ${level}).
+            
+            Please analyze the image and explain the specific question or concept shown on the screen.
+            
+            CRITICAL EXAM INSTRUCTIONS:
+            1. Language: STRICTLY use 'Hinglish' (e.g., 'Is question me hume ye logic lagana hai...').
+            2. NO LATEX: DO NOT use LaTeX math symbols like \\frac, \\times, or $$. Use plain text for math (e.g., 24/100 * 625 = 150) so it is very easy to read on a normal screen.
+            3. Systematic Format: You MUST format your answer strictly using these exact 3 sections (Keep it brief, bulleted, and very easy to read):
+               - **📝 Question/Concept:** What is being asked.
+               - **🧩 Step-by-Step Logic:** Very simple, plain-text step-by-step logic.
+               - **⚡ Bank Exam Shortcut:** The fastest trick to solve this.
+            `;
+
+            try {
+                const explanation = await executeGeminiPrompt(prompt, apiKey, base64Image);
+                // Background process done, hide toast, pause video, and show modal
+                toast.style.display = 'none';
+                if (typeof player.pauseVideo === 'function') player.pauseVideo();
+                overlay.style.display = 'flex';
+                content.innerHTML = marked.parse(explanation);
+            } catch (err) {
+                toast.style.display = 'none';
+                alert("Explanation failed: " + err.message);
+            }
+        }
+
+        function closeExplainModal() {
+            document.getElementById('explainModalOverlay').style.display = 'none';
+            if (!isBreakPhase && player && typeof player.playVideo === 'function') {
+                player.playVideo();
+            }
+        }
+    </script>
+</body>
+</html>
