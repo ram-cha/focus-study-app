@@ -26,8 +26,8 @@ app.get('/api/transcript', async (req, res) => {
         const transcript = await YoutubeTranscript.fetchTranscript(videoId);
         res.json({ transcript });
     } catch (error) {
-        console.error('Error fetching transcript:', error);
-        res.status(500).json({ error: 'Failed to fetch transcript. The video might not have subtitles or CC disabled.' });
+        // Silently return null transcript instead of throwing a 500 error in the console
+        res.status(200).json({ transcript: null, error: 'Failed to fetch transcript.' });
     }
 });
 
