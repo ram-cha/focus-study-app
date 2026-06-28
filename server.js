@@ -31,6 +31,34 @@ app.get('/api/transcript', async (req, res) => {
     }
 });
 
+app.get('/api/yt-transcript-io', async (req, res) => {
+    try {
+        const { videoId, token } = req.query;
+        if (!videoId || !token) {
+            return res.status(200).json({ transcript: null });
+        }
+
+        const response = await fetch('https://www.youtube-transcript.io/api/transcripts', {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Basic ${token}`, 
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify({ ids: [videoId] })
+        });
+        
+        if (!response.ok) {
+            return res.status(200).json({ transcript: null });
+        }
+
+        const data = await response.json();
+        // Since we don't know the exact structure but we know it's a JSON response containing the transcript
+        res.json({ transcript: JSON.stringify(data) });
+    } catch (error) {
+        res.status(200).json({ transcript: null });
+    }
+});
+
 app.get('/api/title', async (req, res) => {
     try {
         const videoId = req.query.videoId;

@@ -283,9 +283,11 @@
             </div>
             <div class="settings-body">
                 <label for="geminiApiKey">Gemini AI API Key</label>
-                <input type="password" id="geminiApiKey" placeholder="Enter Gemini API Key (Free Tier)">
-                <button class="save-btn" onclick="saveApiKey()" style="width: 100%;">Save & Apply Settings</button>
-                <p class="settings-hint">Required for Notes, Quiz & Explain features. Safely stored locally in your browser.</p>
+                <input type="password" id="geminiApiKey" placeholder="Enter Gemini API Key (Free Tier)" style="margin-bottom: 10px;">
+                <label for="ytTranscriptApiKey">YouTube-Transcript.io API Token (Optional 25/mo)</label>
+                <input type="password" id="ytTranscriptApiKey" placeholder="Enter 3rd Party Token for Cloud Fallback" style="margin-bottom: 15px;">
+                <button class="save-btn" onclick="saveSettings()" style="width: 100%;">Save & Apply Settings</button>
+                <p class="settings-hint">Required for AI features. Safely stored locally in your browser.</p>
             </div>
         </div>
     </div>
@@ -445,6 +447,9 @@
             loadRandomQuote();
             const savedKey = localStorage.getItem('geminiApiKey');
             if (savedKey) document.getElementById('geminiApiKey').value = savedKey;
+            
+            const savedYtKey = localStorage.getItem('ytTranscriptApiKey');
+            if (savedYtKey) document.getElementById('ytTranscriptApiKey').value = savedYtKey;
 
             // Auto-detect listener
             document.getElementById('youtubeUrl').addEventListener('input', handleUrlInput);
@@ -819,14 +824,19 @@
         function openSettings() { document.getElementById('settingsOverlay').style.display = 'flex'; }
         function closeSettings() { document.getElementById('settingsOverlay').style.display = 'none'; }
 
-        function saveApiKey() {
-            const key = document.getElementById('geminiApiKey').value.trim();
-            if (key) {
-                localStorage.setItem('geminiApiKey', key);
+        function saveSettings() {
+            const geminiKey = document.getElementById('geminiApiKey').value.trim();
+            const ytKey = document.getElementById('ytTranscriptApiKey').value.trim();
+            
+            if (geminiKey) {
+                localStorage.setItem('geminiApiKey', geminiKey);
+                if (ytKey) localStorage.setItem('ytTranscriptApiKey', ytKey);
+                else localStorage.removeItem('ytTranscriptApiKey');
+                
                 alert("✅ AI Settings Saved Successfully! Ab aap AI features ka use kar sakte hain.");
                 closeSettings(); // Auto-close modal after save
             } else {
-                alert("Please enter a valid API key.");
+                alert("Please enter a valid Gemini API key.");
             }
         }
 
@@ -908,18 +918,30 @@
 
             // Check for Custom Transcript first
             const customTranscript = document.getElementById('customTranscriptInput').value.trim();
+            const ytApiKey = localStorage.getItem('ytTranscriptApiKey');
             let transcriptText = null;
+
+            let videoId;
+            try { videoId = player.getVideoData().video_id; } catch(e) {}
+            if (!videoId) {
+                const match = url.match(/(?:v=|embed\/|v\/|shorts\/|youtu\.be\/)([\w-]{11})/);
+                videoId = match ? match[1] : null;
+            }
 
             if (customTranscript) {
                 transcriptText = customTranscript;
-            } else {
-                // Fetch transcript from local backend
-                let videoId;
-                try { videoId = player.getVideoData().video_id; } catch(e) {}
-                if (!videoId) {
-                    const match = url.match(/(?:v=|embed\/|v\/|shorts\/|youtu\.be\/)([\w-]{11})/);
-                    videoId = match ? match[1] : null;
+            } else if (ytApiKey && videoId) {
+                // Priority 2: Use Paid Token
+                const res = await fetch(`/api/yt-transcript-io?videoId=${videoId}&token=${ytApiKey}`);
+                const data = await res.json();
+                if (data.transcript) {
+                    transcriptText = data.transcript;
+                } else {
+                    // Fallback to Priority 3 if Priority 2 fails
+                    transcriptText = await fetchTranscriptText(videoId, startTime, endTime);
                 }
+            } else {
+                // Priority 3: Local Backend
                 transcriptText = videoId ? await fetchTranscriptText(videoId, startTime, endTime) : null;
             }
             
@@ -991,18 +1013,30 @@
 
             // Check for Custom Transcript first
             const customTranscript = document.getElementById('customTranscriptInput').value.trim();
+            const ytApiKey = localStorage.getItem('ytTranscriptApiKey');
             let transcriptText = null;
+
+            let videoId;
+            try { videoId = player.getVideoData().video_id; } catch(e) {}
+            if (!videoId) {
+                const match = url.match(/(?:v=|embed\/|v\/|shorts\/|youtu\.be\/)([\w-]{11})/);
+                videoId = match ? match[1] : null;
+            }
 
             if (customTranscript) {
                 transcriptText = customTranscript;
-            } else {
-                // Fetch transcript from local backend
-                let videoId;
-                try { videoId = player.getVideoData().video_id; } catch(e) {}
-                if (!videoId) {
-                    const match = url.match(/(?:v=|embed\/|v\/|shorts\/|youtu\.be\/)([\w-]{11})/);
-                    videoId = match ? match[1] : null;
+            } else if (ytApiKey && videoId) {
+                // Priority 2: Use Paid Token
+                const res = await fetch(`/api/yt-transcript-io?videoId=${videoId}&token=${ytApiKey}`);
+                const data = await res.json();
+                if (data.transcript) {
+                    transcriptText = data.transcript;
+                } else {
+                    // Fallback to Priority 3 if Priority 2 fails
+                    transcriptText = await fetchTranscriptText(videoId, startTime, currentTime);
                 }
+            } else {
+                // Priority 3: Local Backend
                 transcriptText = videoId ? await fetchTranscriptText(videoId, startTime, currentTime) : null;
             }
             
