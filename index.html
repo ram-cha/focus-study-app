@@ -485,10 +485,12 @@
                             {"subject": "Exact Subject Name", "level": "Exact Level Name"}`;
                             
                             let aiRes = await executeGeminiPrompt(prompt, apiKey);
-                            aiRes = aiRes.replace(/```json/gi, '').replace(/```/g, '').trim();
-                            // Fix potential Gemini Markdown issues
-                            if(aiRes.startsWith('{') && aiRes.endsWith('}')) {
-                                const parsed = JSON.parse(aiRes);
+                            // Robust JSON extraction for chatty models
+                            const jsonStart = aiRes.indexOf('{');
+                            const jsonEnd = aiRes.lastIndexOf('}');
+                            if (jsonStart !== -1 && jsonEnd !== -1) {
+                                const jsonStr = aiRes.substring(jsonStart, jsonEnd + 1);
+                                const parsed = JSON.parse(jsonStr);
                                 if (parsed.subject && parsed.subject !== "Select Subject") subjDropdown.value = parsed.subject;
                                 if (parsed.level) levelDropdown.value = parsed.level;
                             }
@@ -1048,7 +1050,7 @@
                - Use bullet points (-) with proper indentation for concepts and features.
                - Highlight key terms using **bold**.
                - Use blockquotes (>) for special "Bank Exam Tricks", logic short-cuts, or "dhyan dene wali baatein".
-            3. Sums, Math & Code: Agar koi sums, mathematical formula, ya logic steps hain, toh unhe STRICTLY code blocks (\`\`\`math ya \`\`\`) ke andar likho taaki wo alag se highlight ho sakein. Ensure examples reflect REAL Bank Exam (IBPS/SBI) Previous Year Questions (PYQs).
+            3. NO LATEX OR SYMBOLS: DO NOT use LaTeX math symbols like \\frac, \\times, $S_1$, or $$. Use simple plain text for math (e.g., S1:S2, 24/100 * 625 = 150) so it is very easy to read on a normal screen.
             4. Sections Expected: Start with a 'Topic Overview', then 'Deep Concept Analysis' (step-by-step), followed by 'Shortcut Tricks & Logic', and end with 'Quick Takeaways'. Notes ekdum polished lagne chahiye.`;
 
             try {
@@ -1166,10 +1168,16 @@
 
                 // Use gemini-3.1-flash-lite specifically for Quiz as requested by user
                 let rawText = await executeGeminiPrompt(prompt, apiKey, null, "gemini-3.1-flash-lite");
-                // Clean AI response to extract exact JSON
-                rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
                 
-                quizData = JSON.parse(rawText);
+                // Robust JSON array extraction for chatty models
+                const jsonStart = rawText.indexOf('[');
+                const jsonEnd = rawText.lastIndexOf(']');
+                if (jsonStart !== -1 && jsonEnd !== -1) {
+                    const jsonStr = rawText.substring(jsonStart, jsonEnd + 1);
+                    quizData = JSON.parse(jsonStr);
+                } else {
+                    throw new Error("Invalid JSON returned by AI.");
+                }
                 currentQuizIndex = 0;
                 quizScore = 0;
                 
