@@ -584,8 +584,8 @@
             return rawInput;
         }
 
-        async function executeGeminiPrompt(prompt, apiKey, base64Image = null) {
-            let modelToUse = "gemini-1.5-flash"; // Upgraded Model for larger limits
+        async function executeGeminiPrompt(prompt, apiKey, base64Image = null, model = "gemini-1.5-flash") {
+            let modelToUse = model; // Upgraded Model for larger limits or specific tasks
             
 
             // Prepare Payload
@@ -1164,7 +1164,8 @@
             ]`;
 
             try {
-                let rawText = await executeGeminiPrompt(prompt, apiKey);
+                // Use gemini-3.1-flash-lite specifically for Quiz as requested by user
+                let rawText = await executeGeminiPrompt(prompt, apiKey, null, "gemini-3.1-flash-lite");
                 // Clean AI response to extract exact JSON
                 rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
                 
@@ -1291,7 +1292,8 @@
             `;
 
             try {
-                const explanation = await executeGeminiPrompt(prompt, apiKey, base64Image);
+                // Use gemini-3.1-flash-lite specifically for Screen Explain as requested by user
+                const explanation = await executeGeminiPrompt(prompt, apiKey, base64Image, "gemini-3.1-flash-lite");
                 // Background process done, hide toast, pause video, and show modal
                 toast.style.display = 'none';
                 if (typeof player.pauseVideo === 'function') player.pauseVideo();
