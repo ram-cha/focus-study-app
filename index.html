@@ -286,6 +286,10 @@
             <div class="settings-body">
                 <label for="geminiApiKey">Gemini AI API Key</label>
                 <input type="password" id="geminiApiKey" placeholder="Enter Gemini API Key (Free Tier)" style="margin-bottom: 10px;">
+                <label for="gemmaApiKey" style="color: #f59e0b; font-weight: bold;">Gemma API Key (For Master PDF Only)</label>
+                <input type="password" id="gemmaApiKey" placeholder="Enter Gemma / Groq / OpenRouter API Key" style="margin-bottom: 10px;">
+                <label for="gemmaBaseUrl" style="color: #f59e0b; font-weight: bold;">Gemma Base URL (Optional for 3rd Party)</label>
+                <input type="text" id="gemmaBaseUrl" placeholder="Leave blank for Google, or e.g., https://api.groq.com/openai/v1/chat/completions" style="margin-bottom: 10px;">
                 <label for="ytTranscriptApiKey">YouTube-Transcript.io API Token (Optional 25/mo)</label>
                 <input type="password" id="ytTranscriptApiKey" placeholder="Enter 3rd Party Token for Cloud Fallback" style="margin-bottom: 15px;">
                 <button class="save-btn" onclick="saveSettings()" style="width: 100%;">Save & Apply Settings</button>
@@ -452,6 +456,12 @@
             const savedKey = localStorage.getItem('geminiApiKey');
             if (savedKey) document.getElementById('geminiApiKey').value = savedKey;
             
+            const savedGemmaKey = localStorage.getItem('gemmaApiKey');
+            if (savedGemmaKey) document.getElementById('gemmaApiKey').value = savedGemmaKey;
+
+            const savedGemmaUrl = localStorage.getItem('gemmaBaseUrl');
+            if (savedGemmaUrl) document.getElementById('gemmaBaseUrl').value = savedGemmaUrl;
+
             const savedYtKey = localStorage.getItem('ytTranscriptApiKey');
             if (savedYtKey) document.getElementById('ytTranscriptApiKey').value = savedYtKey;
 
@@ -610,11 +620,26 @@
             return rawInput;
         }
 
-        async function executeGeminiPrompt(prompt, apiKey, base64Image = null, model = "gemini-3.1-flash-lite") {
-            let modelToUse = model; // Use the explicitly requested model
+        async function executeGeminiPrompt(prompt, apiKey, base64Image = null, model = "gemini-3.1-flash-lite", customBaseUrl = null) {
+            let modelToUse = model; 
             
+            // If customBaseUrl is provided (like Groq/OpenRouter), use OpenAI format
+            if (customBaseUrl) {
+                const openAiPayload = {
+                    model: modelToUse,
+                    messages: [{ role: "user", content: prompt }]
+                };
+                const res = await fetch(customBaseUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                    body: JSON.stringify(openAiPayload)
+                });
+                const data = await res.json();
+                if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+                return data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : "Error extracting OpenAI response";
+            }
 
-            // Prepare Payload
+            // Otherwise, use Standard Google Gemini API format
             const payload = {
                 contents: [{
                     parts: [{ text: prompt }]
@@ -642,10 +667,10 @@
             
             if (data.error) {
                 if (data.error.code === 404) {
-                    throw new Error("Aapki API Key mein Gemini models ka access nahi hai. Kripya Google AI Studio se ek nayi API Key banayein!");
+                    throw new Error("Aapki API Key mein Gemini models ka access nahi hai. Kripya naya API banayein ya Base URL check karein!");
                 }
                 if (data.error.code === 429 || (data.error.message && data.error.message.includes('Quota'))) {
-                    throw new Error("⏳ Aapki API limit full ho gayi hai (Google Gemini ne dimag garam kar liya). Kripya 1 minute ruk kar dobara try karein!");
+                    throw new Error("⏳ Aapki API limit full ho gayi hai. Kripya 1 minute ruk kar dobara try karein!");
                 }
                 throw new Error(data.error.message);
             }
@@ -953,17 +978,26 @@
 
         function saveSettings() {
             const geminiKey = document.getElementById('geminiApiKey').value.trim();
+            const gemmaKey = document.getElementById('gemmaApiKey').value.trim();
+            const gemmaUrl = document.getElementById('gemmaBaseUrl').value.trim();
             const ytKey = document.getElementById('ytTranscriptApiKey').value.trim();
             
             if (geminiKey) {
                 localStorage.setItem('geminiApiKey', geminiKey);
+                
+                if (gemmaKey) localStorage.setItem('gemmaApiKey', gemmaKey);
+                else localStorage.removeItem('gemmaApiKey');
+
+                if (gemmaUrl) localStorage.setItem('gemmaBaseUrl', gemmaUrl);
+                else localStorage.removeItem('gemmaBaseUrl');
+
                 if (ytKey) localStorage.setItem('ytTranscriptApiKey', ytKey);
                 else localStorage.removeItem('ytTranscriptApiKey');
                 
                 alert("✅ AI Settings Saved Successfully! Ab aap AI features ka use kar sakte hain.");
                 closeSettings(); // Auto-close modal after save
             } else {
-                alert("Please enter a valid Gemini API key.");
+                alert("Please enter a valid primary Gemini API key.");
             }
         }
 
@@ -1137,9 +1171,12 @@
         }
         /* --- Generate Full Master PDF Logic --- */
         async function generateFullSummary() {
-            const apiKey = document.getElementById('geminiApiKey').value.trim();
-            if (!apiKey) {
-                alert("API key required!");
+            let gemmaKey = document.getElementById('gemmaApiKey').value.trim() || localStorage.getItem('gemmaApiKey');
+            let customBaseUrl = document.getElementById('gemmaBaseUrl').value.trim() || localStorage.getItem('gemmaBaseUrl');
+            
+            if (!gemmaKey) {
+                alert("Boss, pehle Settings mein jaakar apni Gemma API Key daliye specifically Full Master PDF ke liye!");
+                openSettings();
                 return;
             }
 
@@ -1152,7 +1189,7 @@
             newSummaryDiv.style.borderBottom = "2px dashed #cbd5e1";
             newSummaryDiv.style.paddingBottom = "15px";
             newSummaryDiv.style.marginBottom = "15px";
-            newSummaryDiv.innerHTML = `<div style="display: flex; align-items: center; gap: 10px; color: #f59e0b; font-weight: bold;"><div class="loader" style="border-top-color:#f59e0b;"></div><span>📚 Pura video padh raha hu (Gemini-1.5-Flash)... Isme thoda time lag sakta hai!</span></div>`;
+            newSummaryDiv.innerHTML = `<div style="display: flex; align-items: center; gap: 10px; color: #f59e0b; font-weight: bold;"><div class="loader" style="border-top-color:#f59e0b;"></div><span>📚 Pura video padh raha hu (Gemma-2-27B)... Isme thoda time lag sakta hai!</span></div>`;
             // Insert at the top of the summary area
             summaryContent.insertBefore(newSummaryDiv, summaryContent.firstChild);
 
@@ -1207,8 +1244,8 @@
                 3. NO LATEX: DO NOT use LaTeX math symbols. Use simple text for math.
                 4. Extract heavily: Ensure you extract EVERY question solved in the video into the Questions section.`;
 
-                // Use the gemini-1.5-flash model specifically for this heavy task since pro might be restricted on user's key
-                const rawText = await executeGeminiPrompt(prompt, apiKey, null, "gemini-1.5-flash");
+                // Use the dedicated gemmaApiKey and custom base URL if provided
+                const rawText = await executeGeminiPrompt(prompt, gemmaKey, null, "gemma-2-27b-it", customBaseUrl);
                 
                 const timeHeader = `\n\n# 📚 FOCUS STUDY MASTER PDF\n### Subject: ${subject} | Level: ${level}\n`;
                 newSummaryDiv.innerHTML = marked.parse(timeHeader + rawText);
