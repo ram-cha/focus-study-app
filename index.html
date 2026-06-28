@@ -262,6 +262,8 @@
     </style>
     <!-- Markdown Parser for Professional Notes Format -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- html2pdf for downloading notes as PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
@@ -387,6 +389,7 @@
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                         <button class="summarize-btn" onclick="generateSummary()">📝 Notes</button>
                         <button class="summarize-btn" style="background-color: #3b82f6;" onclick="generateQuiz()">🎯 Quiz</button>
+                        <button class="summarize-btn" style="background-color: #ef4444; display: none;" id="downloadPdfBtn" onclick="downloadNotesPDF()">📥 Save PDF</button>
                     </div>
                 </div>
             </div>
@@ -1060,6 +1063,9 @@
                 const timeHeader = `\n\n### ⏱ Notes: ${startMins}:${startSecs} se ${endMins}:${endSecs} tak\n`;
                 // Use marked.js to convert Markdown into clean, aligned HTML
                 newSummaryDiv.innerHTML = marked.parse(timeHeader + rawText);
+                
+                // Show PDF download button once notes are generated
+                document.getElementById('downloadPdfBtn').style.display = 'inline-block';
             } catch (err) {
                 newSummaryDiv.innerHTML = `<span style="color: red;">Oops, kuch gadbad ho gayi: ${err.message}</span>`;
             }
@@ -1067,6 +1073,27 @@
             } finally {
                 setButtonsLoading(false);
             }
+        }
+
+        /* --- Download PDF Logic --- */
+        function downloadNotesPDF() {
+            const element = document.getElementById('summaryContent');
+            const videoTitle = document.getElementById('subjectSelect').value || 'Bank_PO_Notes';
+            const opt = {
+                margin:       10,
+                filename:     `FocusStudy_${videoTitle.replace(/[^a-zA-Z0-9]/g, '_')}_Notes.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            
+            // Temporary hide any active loader elements in the notes before printing
+            const loaders = element.querySelectorAll('.loader');
+            loaders.forEach(l => l.style.display = 'none');
+            
+            html2pdf().set(opt).from(element).save().then(() => {
+                loaders.forEach(l => l.style.display = 'inline-block');
+            });
         }
 
         /* --- Auto Interactive Quiz Logic --- */
