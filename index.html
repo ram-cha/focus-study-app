@@ -503,10 +503,90 @@
             }, 500); // 0.5 second debounce wait after pasting
         }
 
-        async function executeGeminiPrompt(prompt, apiKey, base64Image = null) {
-            let modelToUse = "gemini-3.1-flash-lite"; // Default fallback
-            
+        function setButtonsLoading(isLoading) {
+            const buttons = document.querySelectorAll('.summarize-btn');
+            buttons.forEach(btn => {
+                btn.disabled = isLoading;
+                if (isLoading) {
+                    btn.style.opacity = '0.5';
+                    btn.style.cursor = 'not-allowed';
+                } else {
+                    btn.style.opacity = '1';
+                    btn.style.cursor = 'pointer';
+                }
+            });
+        }
 
+        function filterTranscriptByTime(rawInput, startTimeSec, endTimeSec) {
+            if (!rawInput) return null;
+            
+            try {
+                const parsed = JSON.parse(rawInput);
+                if (Array.isArray(parsed)) {
+                    let textChunks = [];
+                    for (const item of parsed) {
+                        let offset = item.offset || item.start;
+                        if (typeof offset === 'string' && offset.includes(':')) {
+                            const parts = offset.split(':');
+                            offset = parseInt(parts[0])*60 + parseFloat(parts[1]);
+                        } else if (typeof offset === 'number') {
+                            if (offset > 50000) offset = offset / 1000; 
+                        } else if (item.start_time) {
+                            offset = parseFloat(item.start_time);
+                        } else {
+                            offset = null; 
+                        }
+
+                        if (offset !== null) {
+                            if (offset >= startTimeSec && offset <= endTimeSec) {
+                                textChunks.push(item.text || item.transcript || "");
+                            }
+                        } else {
+                            textChunks.push(item.text || JSON.stringify(item));
+                        }
+                    }
+                    if (textChunks.length > 0) return textChunks.join(' ');
+                }
+            } catch(e) { }
+
+            const lines = rawInput.split('\n');
+            let filteredText = [];
+            let isWithinTimeframe = false;
+            let hasTimestamps = false;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                
+                const timeMatch = line.match(/^(\d{1,2}:)?(\d{1,2}):(\d{2})$/);
+                if (timeMatch) {
+                    hasTimestamps = true;
+                    let seconds = 0;
+                    if (timeMatch[1]) {
+                        seconds += parseInt(timeMatch[1].replace(':', '')) * 3600;
+                        seconds += parseInt(timeMatch[2]) * 60;
+                        seconds += parseInt(timeMatch[3]);
+                    } else {
+                        seconds += parseInt(timeMatch[2]) * 60;
+                        seconds += parseInt(timeMatch[3]);
+                    }
+                    isWithinTimeframe = (seconds >= startTimeSec && seconds <= endTimeSec);
+                } else if (isWithinTimeframe) {
+                    filteredText.push(line);
+                }
+            }
+
+            if (hasTimestamps && filteredText.length > 0) return filteredText.join(' ');
+            if (hasTimestamps && filteredText.length === 0) return "No transcript found for this timeframe.";
+
+            const words = rawInput.split(/\s+/);
+            if (words.length > 3500) return words.slice(0, 3500).join(' ') + "... (truncated)";
+            return rawInput;
+        }
+
+        async function executeGeminiPrompt(prompt, apiKey, base64Image = null) {
+            let modelToUse = "gemini-1.5-flash"; // Upgraded Model for larger limits
+            
 
             // Prepare Payload
             const payload = {
@@ -537,6 +617,9 @@
             if (data.error) {
                 if (data.error.code === 404) {
                     throw new Error("Aapki API Key mein Gemini models ka access nahi hai. Kripya Google AI Studio se ek nayi API Key banayein!");
+                }
+                if (data.error.code === 429 || (data.error.message && data.error.message.includes('Quota'))) {
+                    throw new Error("⏳ Aapki API limit full ho gayi hai (Google Gemini ne dimag garam kar liya). Kripya 1 minute ruk kar dobara try karein!");
                 }
                 throw new Error(data.error.message);
             }
@@ -916,6 +999,9 @@
             newSummaryDiv.innerHTML = `<div style="display: flex; align-items: center; gap: 10px; color: #8b5cf6; font-weight: bold;"><div class="loader"></div><span>Dimag laga raha hu (Fetching Transcript & Summary for ${startMins}:${startSecs} to ${endMins}:${endSecs})...</span></div>`;
             summaryContent.appendChild(newSummaryDiv);
 
+            setButtonsLoading(true);
+            try {
+
             // Check for Custom Transcript first
             const customTranscript = document.getElementById('customTranscriptInput').value.trim();
             const ytApiKey = localStorage.getItem('ytTranscriptApiKey');
@@ -929,13 +1015,13 @@
             }
 
             if (customTranscript) {
-                transcriptText = customTranscript;
+                transcriptText = filterTranscriptByTime(customTranscript, startTime, endTime);
             } else if (ytApiKey && videoId) {
                 // Priority 2: Use Paid Token
                 const res = await fetch(`/api/yt-transcript-io?videoId=${videoId}&token=${ytApiKey}`);
                 const data = await res.json();
                 if (data.transcript) {
-                    transcriptText = data.transcript;
+                    transcriptText = filterTranscriptByTime(data.transcript, startTime, endTime);
                 } else {
                     // Fallback to Priority 3 if Priority 2 fails
                     transcriptText = await fetchTranscriptText(videoId, startTime, endTime);
@@ -974,6 +1060,10 @@
             } catch (err) {
                 newSummaryDiv.innerHTML = `<span style="color: red;">Oops, kuch gadbad ho gayi: ${err.message}</span>`;
             }
+            
+            } finally {
+                setButtonsLoading(false);
+            }
         }
 
         /* --- Auto Interactive Quiz Logic --- */
@@ -998,6 +1088,9 @@
 
             // Smoothly scroll down to the quiz container
             quizContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            setButtonsLoading(true);
+            try {
 
             const currentTime = player.getCurrentTime();
             const startTime = Math.max(0, currentTime - (25 * 60));
@@ -1024,13 +1117,13 @@
             }
 
             if (customTranscript) {
-                transcriptText = customTranscript;
+                transcriptText = filterTranscriptByTime(customTranscript, startTime, currentTime);
             } else if (ytApiKey && videoId) {
                 // Priority 2: Use Paid Token
                 const res = await fetch(`/api/yt-transcript-io?videoId=${videoId}&token=${ytApiKey}`);
                 const data = await res.json();
                 if (data.transcript) {
-                    transcriptText = data.transcript;
+                    transcriptText = filterTranscriptByTime(data.transcript, startTime, currentTime);
                 } else {
                     // Fallback to Priority 3 if Priority 2 fails
                     transcriptText = await fetchTranscriptText(videoId, startTime, currentTime);
@@ -1084,6 +1177,8 @@
                 renderQuizQuestion();
             } catch (err) {
                 quizLoading.innerHTML = `<span style="color: #ef4444; font-weight: bold;">Quiz load nahi ho paya (Sayad error hai): ${err.message}</span>`;
+            } finally {
+                setButtonsLoading(false);
             }
         }
 
