@@ -284,12 +284,10 @@
                 <button class="close-btn" onclick="closeSettings()">✖</button>
             </div>
             <div class="settings-body">
-                <label for="geminiApiKey">Gemini AI API Key</label>
+                <label for="geminiApiKey">Gemini AI API Key (Primary)</label>
                 <input type="password" id="geminiApiKey" placeholder="Enter Gemini API Key (Free Tier)" style="margin-bottom: 10px;">
-                <label for="gemmaApiKey" style="color: #f59e0b; font-weight: bold;">Gemma API Key (For Master PDF Only)</label>
-                <input type="password" id="gemmaApiKey" placeholder="Enter Gemma / Groq / OpenRouter API Key" style="margin-bottom: 10px;">
-                <label for="gemmaBaseUrl" style="color: #f59e0b; font-weight: bold;">Gemma Base URL (Optional for 3rd Party)</label>
-                <input type="text" id="gemmaBaseUrl" placeholder="Leave blank for Google, or e.g., https://api.groq.com/openai/v1/chat/completions" style="margin-bottom: 10px;">
+                <label for="masterPdfApiKey" style="color: #f59e0b; font-weight: bold;">Master PDF API Key (Gemini - Optional)</label>
+                <input type="password" id="masterPdfApiKey" placeholder="Enter 2nd Gemini API Key (For heavy PDF tasks)" style="margin-bottom: 10px;">
                 <label for="ytTranscriptApiKey">YouTube-Transcript.io API Token (Optional 25/mo)</label>
                 <input type="password" id="ytTranscriptApiKey" placeholder="Enter 3rd Party Token for Cloud Fallback" style="margin-bottom: 15px;">
                 <button class="save-btn" onclick="saveSettings()" style="width: 100%;">Save & Apply Settings</button>
@@ -456,11 +454,8 @@
             const savedKey = localStorage.getItem('geminiApiKey');
             if (savedKey) document.getElementById('geminiApiKey').value = savedKey;
             
-            const savedGemmaKey = localStorage.getItem('gemmaApiKey');
-            if (savedGemmaKey) document.getElementById('gemmaApiKey').value = savedGemmaKey;
-
-            const savedGemmaUrl = localStorage.getItem('gemmaBaseUrl');
-            if (savedGemmaUrl) document.getElementById('gemmaBaseUrl').value = savedGemmaUrl;
+            const savedMasterKey = localStorage.getItem('masterPdfApiKey');
+            if (savedMasterKey) document.getElementById('masterPdfApiKey').value = savedMasterKey;
 
             const savedYtKey = localStorage.getItem('ytTranscriptApiKey');
             if (savedYtKey) document.getElementById('ytTranscriptApiKey').value = savedYtKey;
@@ -978,18 +973,14 @@
 
         function saveSettings() {
             const geminiKey = document.getElementById('geminiApiKey').value.trim();
-            const gemmaKey = document.getElementById('gemmaApiKey').value.trim();
-            const gemmaUrl = document.getElementById('gemmaBaseUrl').value.trim();
+            const masterPdfKey = document.getElementById('masterPdfApiKey').value.trim();
             const ytKey = document.getElementById('ytTranscriptApiKey').value.trim();
             
             if (geminiKey) {
                 localStorage.setItem('geminiApiKey', geminiKey);
                 
-                if (gemmaKey) localStorage.setItem('gemmaApiKey', gemmaKey);
-                else localStorage.removeItem('gemmaApiKey');
-
-                if (gemmaUrl) localStorage.setItem('gemmaBaseUrl', gemmaUrl);
-                else localStorage.removeItem('gemmaBaseUrl');
+                if (masterPdfKey) localStorage.setItem('masterPdfApiKey', masterPdfKey);
+                else localStorage.removeItem('masterPdfApiKey');
 
                 if (ytKey) localStorage.setItem('ytTranscriptApiKey', ytKey);
                 else localStorage.removeItem('ytTranscriptApiKey');
@@ -1171,18 +1162,17 @@
         }
         /* --- Generate Full Master PDF Logic --- */
         async function generateFullSummary() {
-            let gemmaKey = document.getElementById('gemmaApiKey').value.trim() || localStorage.getItem('gemmaApiKey');
-            let customBaseUrl = document.getElementById('gemmaBaseUrl').value.trim() || localStorage.getItem('gemmaBaseUrl');
+            let masterPdfKey = document.getElementById('masterPdfApiKey').value.trim() || localStorage.getItem('masterPdfApiKey');
             const primaryGeminiKey = document.getElementById('geminiApiKey').value.trim() || localStorage.getItem('geminiApiKey');
             
-            if (!gemmaKey && !primaryGeminiKey) {
+            if (!masterPdfKey && !primaryGeminiKey) {
                 alert("Boss, pehle Settings mein jaakar API Key daliye!");
                 openSettings();
                 return;
             }
 
-            const isUsingGemma = !!gemmaKey;
-            const modelNameText = isUsingGemma ? "Gemma-2-27B" : "Gemini-1.5-Flash";
+            // Using the Master PDF Key if provided, else fallback to Primary Key
+            const finalApiKey = masterPdfKey || primaryGeminiKey;
 
             const url = document.getElementById('youtubeUrl').value;
             const subject = document.getElementById('subjectSelect').value;
@@ -1193,7 +1183,7 @@
             newSummaryDiv.style.borderBottom = "2px dashed #cbd5e1";
             newSummaryDiv.style.paddingBottom = "15px";
             newSummaryDiv.style.marginBottom = "15px";
-            newSummaryDiv.innerHTML = `<div style="display: flex; align-items: center; gap: 10px; color: #f59e0b; font-weight: bold;"><div class="loader" style="border-top-color:#f59e0b;"></div><span>📚 Pura video padh raha hu (${modelNameText})... Isme thoda time lag sakta hai!</span></div>`;
+            newSummaryDiv.innerHTML = `<div style="display: flex; align-items: center; gap: 10px; color: #f59e0b; font-weight: bold;"><div class="loader" style="border-top-color:#f59e0b;"></div><span>📚 Pura video padh raha hu (Gemini-1.5-Flash)... Isme thoda time lag sakta hai!</span></div>`;
             // Insert at the top of the summary area
             summaryContent.insertBefore(newSummaryDiv, summaryContent.firstChild);
 
@@ -1248,11 +1238,8 @@
                 3. NO LATEX: DO NOT use LaTeX math symbols. Use simple text for math.
                 4. Extract heavily: Ensure you extract EVERY question solved in the video into the Questions section.`;
 
-                // If they provided a Gemma key, we use gemma-2-27b-it. If not, we fallback to gemini-1.5-flash using primary key.
-                const finalApiKey = isUsingGemma ? gemmaKey : primaryGeminiKey;
-                const finalModel = isUsingGemma ? "gemma-2-27b-it" : "gemini-1.5-flash";
-                
-                const rawText = await executeGeminiPrompt(prompt, finalApiKey, null, finalModel, customBaseUrl);
+                // Use gemini-1.5-flash for the heavy Master PDF task.
+                const rawText = await executeGeminiPrompt(prompt, finalApiKey, null, "gemini-1.5-flash");
                 
                 const timeHeader = `\n\n# 📚 FOCUS STUDY MASTER PDF\n### Subject: ${subject} | Level: ${level}\n`;
                 newSummaryDiv.innerHTML = marked.parse(timeHeader + rawText);
