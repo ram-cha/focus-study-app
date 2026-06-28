@@ -285,10 +285,8 @@
                 <button class="close-btn" onclick="closeSettings()">✖</button>
             </div>
             <div class="settings-body">
-                <label for="geminiApiKey">Gemini AI API Key (Primary)</label>
+                <label for="geminiApiKey">Gemini AI API Key</label>
                 <input type="password" id="geminiApiKey" placeholder="Enter Gemini API Key (Free Tier)" style="margin-bottom: 10px;">
-                <label for="masterPdfApiKey" style="color: #f59e0b; font-weight: bold;">Master PDF API Key (Gemini - Required)</label>
-                <input type="password" id="masterPdfApiKey" placeholder="Enter 2nd Gemini API Key (For heavy PDF tasks)" style="margin-bottom: 10px;">
                 <label for="ytTranscriptApiKey">YouTube-Transcript.io API Token (Optional 25/mo)</label>
                 <input type="password" id="ytTranscriptApiKey" placeholder="Enter 3rd Party Token for Cloud Fallback" style="margin-bottom: 15px;">
                 <button class="save-btn" onclick="saveSettings()" style="width: 100%;">Save & Apply Settings</button>
@@ -393,7 +391,6 @@
                         <button class="summarize-btn" onclick="generateSummary()">📝 Notes</button>
                         <button class="summarize-btn" style="background-color: #3b82f6;" onclick="generateQuiz()">🎯 Quiz</button>
                         <button class="summarize-btn" style="background-color: #ef4444; display: none;" id="downloadPdfBtn" onclick="downloadNotesPDF()">📥 Save PDF</button>
-                        <button class="summarize-btn" style="background-color: #f59e0b;" onclick="generateFullSummary()">📚 Master PDF</button>
                     </div>
                 </div>
             </div>
@@ -454,9 +451,6 @@
             loadRandomQuote();
             const savedKey = localStorage.getItem('geminiApiKey');
             if (savedKey) document.getElementById('geminiApiKey').value = savedKey;
-            
-            const savedMasterKey = localStorage.getItem('masterPdfApiKey');
-            if (savedMasterKey) document.getElementById('masterPdfApiKey').value = savedMasterKey;
 
             const savedYtKey = localStorage.getItem('ytTranscriptApiKey');
             if (savedYtKey) document.getElementById('ytTranscriptApiKey').value = savedYtKey;
@@ -974,22 +968,18 @@
 
         function saveSettings() {
             const geminiKey = document.getElementById('geminiApiKey').value.trim();
-            const masterPdfKey = document.getElementById('masterPdfApiKey').value.trim();
             const ytKey = document.getElementById('ytTranscriptApiKey').value.trim();
             
             if (geminiKey) {
                 localStorage.setItem('geminiApiKey', geminiKey);
                 
-                if (masterPdfKey) localStorage.setItem('masterPdfApiKey', masterPdfKey);
-                else localStorage.removeItem('masterPdfApiKey');
-
                 if (ytKey) localStorage.setItem('ytTranscriptApiKey', ytKey);
                 else localStorage.removeItem('ytTranscriptApiKey');
                 
                 alert("✅ AI Settings Saved Successfully! Ab aap AI features ka use kar sakte hain.");
                 closeSettings(); // Auto-close modal after save
             } else {
-                alert("Please enter a valid primary Gemini API key.");
+                alert("Please enter a valid Gemini API key.");
             }
         }
 
@@ -1162,101 +1152,7 @@
                 loaders.forEach(l => l.style.display = 'inline-block');
             });
         }
-        /* --- Generate Full Master PDF Logic --- */
-        async function generateFullSummary() {
-            let masterPdfKey = document.getElementById('masterPdfApiKey').value.trim() || localStorage.getItem('masterPdfApiKey');
-            
-            if (!masterPdfKey) {
-                alert("Boss, pehle Settings mein jaakar Master PDF ke liye dusri API Key daliye!");
-                openSettings();
-                return;
-            }
-
-            const url = document.getElementById('youtubeUrl').value;
-            const subject = document.getElementById('subjectSelect').value;
-            const level = document.getElementById('levelSelect').value;
-            const summaryContent = document.getElementById('summaryContent');
-
-            const newSummaryDiv = document.createElement('div');
-            newSummaryDiv.style.borderBottom = "2px dashed #cbd5e1";
-            newSummaryDiv.style.paddingBottom = "15px";
-            newSummaryDiv.style.marginBottom = "15px";
-            newSummaryDiv.innerHTML = `<div style="display: flex; align-items: center; gap: 10px; color: #f59e0b; font-weight: bold;"><div class="loader" style="border-top-color:#f59e0b;"></div><span>📚 Pura video padh raha hu (Gemini-3.1-Flash-Lite)... Isme thoda time lag sakta hai!</span></div>`;
-            // Insert at the top of the summary area
-            summaryContent.insertBefore(newSummaryDiv, summaryContent.firstChild);
-
-            setButtonsLoading(true);
-            try {
-                // Fetch the full transcript (without time slicing)
-                let videoId;
-                try { videoId = player.getVideoData().video_id; } catch(e) {}
-                if (!videoId) {
-                    const match = url.match(/(?:v=|embed\/|v\/|shorts\/|live\/|youtu\.be\/)([\w-]{11})/);
-                    videoId = match ? match[1] : null;
-                }
-
-                let transcriptText = null;
-                const customTranscript = document.getElementById('customTranscriptInput').value.trim();
-                const ytApiKey = localStorage.getItem('ytTranscriptApiKey');
-                
-                if (customTranscript) {
-                    transcriptText = filterTranscriptByTime(customTranscript, 0, 999999);
-                } else if (ytApiKey && videoId) {
-                    const res = await fetch(`/api/yt-transcript-io?videoId=${videoId}&token=${ytApiKey}`);
-                    const data = await res.json();
-                    if (data.transcript) {
-                        transcriptText = filterTranscriptByTime(data.transcript, 0, 999999);
-                    } else {
-                        transcriptText = await fetchTranscriptText(videoId, 0, 999999);
-                    }
-                } else {
-                    transcriptText = videoId ? await fetchTranscriptText(videoId, 0, 999999) : null;
-                }
-
-                if (!transcriptText || transcriptText.trim().length < 50) {
-                    throw new Error("Transcript is too short or not available for full PDF.");
-                }
-
-                const prompt = `You are a master Bank PO study material creator. I am providing you with the ENTIRE transcript of a YouTube video for Bank Exams.
-                The subject is: **${subject}** and the target level is: **${level}**.
-                Your task is to generate a MASSIVE, COMPREHENSIVE STUDY MATERIAL BOOKLET from this video.
-                DO NOT MISS ANY CONCEPT, TRICK, OR QUESTION discussed in the video.
-
-                Transcript:
-                "${transcriptText}"
-
-                CRITICAL INSTRUCTIONS:
-                1. Language: STRICTLY use ROMAN SCRIPT (English Alphabets) for Hinglish (e.g., 'Is concept ka main logic ye hai ki...'). DO NOT use Devanagari Hindi (हिंदी) anywhere.
-                2. Structure: Format strictly in Professional Markdown.
-                   - ## Complete Master Overview
-                   - ## All Concepts Explained Step-by-Step
-                   - ## All Tricks & Shortcuts Discussed
-                   - ## All Questions Solved (Provide the question, and the step-by-step solution)
-                   - ## Final Conclusion & Takeaways
-                3. NO LATEX: DO NOT use LaTeX math symbols. Use simple text for math.
-                4. Extract heavily: Ensure you extract EVERY question solved in the video into the Questions section.`;
-
-                // Use gemini-3.1-flash-lite for the heavy Master PDF task as requested to ensure 100% compatibility.
-                const rawText = await executeGeminiPrompt(prompt, masterPdfKey, null, "gemini-3.1-flash-lite");
-                
-                const timeHeader = `\n\n# 📚 FOCUS STUDY MASTER PDF\n### Subject: ${subject} | Level: ${level}\n`;
-                newSummaryDiv.innerHTML = marked.parse(timeHeader + rawText);
-                
-                document.getElementById('downloadPdfBtn').style.display = 'inline-block';
-                
-                // Prompt user to download automatically
-                setTimeout(() => {
-                    if(confirm("Master PDF is ready! Do you want to download it now?")) {
-                        downloadNotesPDF();
-                    }
-                }, 500);
-
-            } catch (err) {
-                newSummaryDiv.innerHTML = `<span style="color: red;">Oops, Full Master PDF fail ho gaya: ${err.message}</span>`;
-            } finally {
-                setButtonsLoading(false);
-            }
-        }
+        // Generate Summary logic continues after PDF download function
 
         /* --- Auto Interactive Quiz Logic --- */
         let quizData = [];
