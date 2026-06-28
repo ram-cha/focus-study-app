@@ -377,6 +377,10 @@
                             <input type="text" id="customEndTime" placeholder="MM:SS" style="padding: 8px; width: 60px; font-size: 14px;">
                         </div>
                     </div>
+                    <details style="margin-bottom: 15px; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px;">
+                        <summary style="cursor: pointer; color: #8b5cf6; font-weight: 600; outline: none; font-size: 14px;">➕ Paste Custom Transcript (Fallback)</summary>
+                        <textarea id="customTranscriptInput" placeholder="If auto-fetch fails, copy-paste the transcript from YouTube here..." style="width: 100%; height: 100px; margin-top: 10px; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; font-family: inherit; font-size: 14px; box-sizing: border-box; resize: vertical;"></textarea>
+                    </details>
                     
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                         <button class="summarize-btn" onclick="generateSummary()">📝 Notes</button>
@@ -902,15 +906,22 @@
             newSummaryDiv.innerHTML = `<div style="display: flex; align-items: center; gap: 10px; color: #8b5cf6; font-weight: bold;"><div class="loader"></div><span>Dimag laga raha hu (Fetching Transcript & Summary for ${startMins}:${startSecs} to ${endMins}:${endSecs})...</span></div>`;
             summaryContent.appendChild(newSummaryDiv);
 
-            // Fetch transcript from local backend
-            let videoId;
-            try { videoId = player.getVideoData().video_id; } catch(e) {}
-            if (!videoId) {
-                const match = url.match(/(?:v=|embed\/|v\/|shorts\/|youtu\.be\/)([\w-]{11})/);
-                videoId = match ? match[1] : null;
-            }
+            // Check for Custom Transcript first
+            const customTranscript = document.getElementById('customTranscriptInput').value.trim();
+            let transcriptText = null;
 
-            const transcriptText = videoId ? await fetchTranscriptText(videoId, startTime, endTime) : null;
+            if (customTranscript) {
+                transcriptText = customTranscript;
+            } else {
+                // Fetch transcript from local backend
+                let videoId;
+                try { videoId = player.getVideoData().video_id; } catch(e) {}
+                if (!videoId) {
+                    const match = url.match(/(?:v=|embed\/|v\/|shorts\/|youtu\.be\/)([\w-]{11})/);
+                    videoId = match ? match[1] : null;
+                }
+                transcriptText = videoId ? await fetchTranscriptText(videoId, startTime, endTime) : null;
+            }
             
             let promptContext = `video URL: ${url}`;
             if (transcriptText && transcriptText.trim().length > 10) {
@@ -978,15 +989,22 @@
 
             document.getElementById('quizLoadingText').innerText = `Generating ${level} Quiz from ${startMins}:${startSecs} to ${endMins}:${endSecs}...`;
 
-            // Fetch transcript from local backend
-            let videoId;
-            try { videoId = player.getVideoData().video_id; } catch(e) {}
-            if (!videoId) {
-                const match = url.match(/(?:v=|embed\/|v\/|shorts\/|youtu\.be\/)([\w-]{11})/);
-                videoId = match ? match[1] : null;
-            }
+            // Check for Custom Transcript first
+            const customTranscript = document.getElementById('customTranscriptInput').value.trim();
+            let transcriptText = null;
 
-            const transcriptText = videoId ? await fetchTranscriptText(videoId, startTime, currentTime) : null;
+            if (customTranscript) {
+                transcriptText = customTranscript;
+            } else {
+                // Fetch transcript from local backend
+                let videoId;
+                try { videoId = player.getVideoData().video_id; } catch(e) {}
+                if (!videoId) {
+                    const match = url.match(/(?:v=|embed\/|v\/|shorts\/|youtu\.be\/)([\w-]{11})/);
+                    videoId = match ? match[1] : null;
+                }
+                transcriptText = videoId ? await fetchTranscriptText(videoId, startTime, currentTime) : null;
+            }
             
             let promptContext = `(URL: ${url})`;
             if (transcriptText && transcriptText.trim().length > 10) {
