@@ -246,6 +246,19 @@
         .quiz-btn:hover:not(:disabled) { background: #059669; }
         .quiz-btn:disabled { background: #cbd5e1; cursor: not-allowed; }
         .quiz-result-item { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #e2e8f0; font-size: 15px; }
+        
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            body { padding: 80px 10px 30px 10px; }
+            .container { padding: 15px; border-radius: 8px; }
+            .input-group { flex-direction: column; gap: 10px; }
+            .subject-select, input[type="text"], button { width: 100%; box-sizing: border-box; }
+            .top-header { padding: 15px 20px; }
+            .ai-header { flex-direction: column; gap: 15px; align-items: stretch; }
+            .ai-header > div { display: flex; flex-direction: column; gap: 10px; }
+            .ai-header select, .ai-header button, .ai-header input { width: 100%; box-sizing: border-box; }
+            .explain-btn { right: 15px; top: 60px; }
+        }
     </style>
     <!-- Markdown Parser for Professional Notes Format -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -301,6 +314,12 @@
             <button onclick="playVideo()">Play Video</button>
         </div>
         
+        <!-- Motivational Quote Section -->
+        <div id="motivationalQuoteContainer" style="background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); padding: 40px 20px; border-radius: 12px; text-align: center; margin-bottom: 25px; border: 1px solid #cbd5e1; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+            <p id="motivationalQuoteText" style="font-size: 22px; font-style: italic; color: #334155; margin: 0; font-weight: 500; line-height: 1.5;"></p>
+            <p id="motivationalQuoteAuthor" style="font-size: 16px; color: #8b5cf6; margin-top: 15px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;"></p>
+        </div>
+
         <div class="video-wrapper" id="videoWrapper">
             <!-- Corner Timer (Visible always on video) -->
             <div id="cornerTimer" class="corner-timer">Focus: 25:00</div>
@@ -315,6 +334,10 @@
             <div class="break-overlay" id="breakOverlay">
                 <h3>Take a Break!</h3>
                 <div class="timer-display" id="breakTimer">05:00</div>
+                <div style="margin-top: 25px; display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
+                    <button onclick="shortcutReadNotes()" style="background-color: #8b5cf6; padding: 10px 20px; font-size: 16px;">📝 Read Notes (Revision)</button>
+                    <button onclick="shortcutSolveQuiz()" style="background-color: #3b82f6; padding: 10px 20px; font-size: 16px;">🎯 Solve Quiz</button>
+                </div>
             </div>
 
             <!-- AI Toast Notification -->
@@ -386,8 +409,36 @@
     </div>
 
     <script>
+        const quotes = [
+            { text: "Success in Bank exams is not about being the smartest, it's about being the most consistent.", author: "Bank PO Aspirant" },
+            { text: "There are no secrets to success. It is the result of preparation, hard work, and learning from failure.", author: "Colin Powell" },
+            { text: "Your future is created by what you do today, not tomorrow.", author: "Robert Kiyosaki" },
+            { text: "Don't watch the clock; do what it does. Keep going.", author: "Sam Levenson" },
+            { text: "The harder you work for something, the greater you'll feel when you achieve it.", author: "Unknown" },
+            { text: "Push yourself, because no one else is going to do it for you.", author: "Unknown" },
+            { text: "Dream it. Wish it. Do it. Make your Bank PO dream a reality.", author: "Unknown" }
+        ];
+
+        function loadRandomQuote() {
+            const q = quotes[Math.floor(Math.random() * quotes.length)];
+            document.getElementById('motivationalQuoteText').innerText = `"${q.text}"`;
+            document.getElementById('motivationalQuoteAuthor').innerText = `- ${q.author}`;
+        }
+
+        function shortcutReadNotes() {
+            document.getElementById('breakOverlay').style.display = 'none';
+            document.getElementById('aiSection').scrollIntoView({ behavior: 'smooth' });
+            generateSummary();
+        }
+
+        function shortcutSolveQuiz() {
+            document.getElementById('breakOverlay').style.display = 'none';
+            document.getElementById('quizContainer').scrollIntoView({ behavior: 'smooth' });
+        }
+
         // Page load hone par purani API key wapas le aao
         window.onload = () => {
+            loadRandomQuote();
             const savedKey = localStorage.getItem('geminiApiKey');
             if (savedKey) document.getElementById('geminiApiKey').value = savedKey;
 
@@ -654,8 +705,9 @@
             if (match && match[1]) {
                 const videoId = match[1];
                 
-                // Hide error message
+                // Hide error message and quote
                 errorMsg.style.display = 'none';
+                document.getElementById('motivationalQuoteContainer').style.display = 'none';
                 videoWrapper.style.display = 'block';
                 document.getElementById('aiSection').style.display = 'block';
                 
