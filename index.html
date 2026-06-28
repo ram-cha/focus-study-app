@@ -1152,7 +1152,7 @@
             newSummaryDiv.style.borderBottom = "2px dashed #cbd5e1";
             newSummaryDiv.style.paddingBottom = "15px";
             newSummaryDiv.style.marginBottom = "15px";
-            newSummaryDiv.innerHTML = `<div style="display: flex; align-items: center; gap: 10px; color: #f59e0b; font-weight: bold;"><div class="loader" style="border-top-color:#f59e0b;"></div><span>📚 Pura video padh raha hu (Gemma-2-27B)... Isme thoda time lag sakta hai!</span></div>`;
+            newSummaryDiv.innerHTML = `<div style="display: flex; align-items: center; gap: 10px; color: #f59e0b; font-weight: bold;"><div class="loader" style="border-top-color:#f59e0b;"></div><span>📚 Pura video padh raha hu (Gemini-1.5-Pro)... Isme thoda time lag sakta hai!</span></div>`;
             // Insert at the top of the summary area
             summaryContent.insertBefore(newSummaryDiv, summaryContent.firstChild);
 
@@ -1207,8 +1207,8 @@
                 3. NO LATEX: DO NOT use LaTeX math symbols. Use simple text for math.
                 4. Extract heavily: Ensure you extract EVERY question solved in the video into the Questions section.`;
 
-                // Use the Gemma-2-27B model specifically for this heavy task
-                const rawText = await executeGeminiPrompt(prompt, apiKey, null, "gemma-2-27b-it");
+                // Use the gemini-1.5-pro model specifically for this heavy task since gemma is not in the public REST API
+                const rawText = await executeGeminiPrompt(prompt, apiKey, null, "gemini-1.5-pro");
                 
                 const timeHeader = `\n\n# 📚 FOCUS STUDY MASTER PDF\n### Subject: ${subject} | Level: ${level}\n`;
                 newSummaryDiv.innerHTML = marked.parse(timeHeader + rawText);
