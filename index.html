@@ -211,10 +211,11 @@
             text-align: left; overflow-x: auto;
         }
         /* Professional Markdown Note Styles */
-        .summary-content h1, .summary-content h2, .summary-content h3 { color: #0f172a; margin-top: 1.2em; margin-bottom: 0.5em; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; }
+        .summary-content h1, .summary-content h2, .summary-content h3 { color: #0f172a; margin-top: 1.5em; margin-bottom: 0.8em; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; line-height: 1.4; page-break-after: avoid; }
+        .summary-content p { line-height: 1.7; margin-bottom: 1em; page-break-inside: avoid; }
         .summary-content h1:first-child, .summary-content h2:first-child { margin-top: 0; }
         .summary-content ul, .summary-content ol { padding-left: 20px; margin-bottom: 15px; }
-        .summary-content li { margin-bottom: 8px; }
+        .summary-content li { margin-bottom: 10px; line-height: 1.6; page-break-inside: avoid; }
         .summary-content strong { color: #1e293b; font-weight: 700; }
         .summary-content pre { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; overflow-x: auto; font-family: Consolas, monospace; }
         .summary-content code { background: #f1f5f9; padding: 3px 6px; border-radius: 4px; font-family: Consolas, monospace; color: #db2777; font-size: 14.5px; }
@@ -1145,11 +1146,12 @@
             const element = document.getElementById('summaryContent');
             const videoTitle = document.getElementById('subjectSelect').value || 'Bank_PO_Notes';
             const opt = {
-                margin:       10,
+                margin:       [15, 10, 15, 10],
                 filename:     `FocusStudy_${videoTitle.replace(/[^a-zA-Z0-9]/g, '_')}_Notes.pdf`,
                 image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2 },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
             };
             
             // Temporary hide any active loader elements in the notes before printing
