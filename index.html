@@ -1092,78 +1092,77 @@
             setButtonsLoading(true);
             try {
 
-            const currentTime = player.getCurrentTime();
-            const startTime = Math.max(0, currentTime - (25 * 60));
-            const endMins = Math.floor(currentTime / 60).toString().padStart(2, '0');
-            const endSecs = Math.floor(currentTime % 60).toString().padStart(2, '0');
-            const startMins = Math.floor(startTime / 60).toString().padStart(2, '0');
-            const startSecs = Math.floor(startTime % 60).toString().padStart(2, '0');
-            const url = document.getElementById('youtubeUrl').value;
-            const subject = document.getElementById('subjectSelect').value;
-            const level = document.getElementById('levelSelect').value;
+                const currentTime = player.getCurrentTime();
+                const startTime = Math.max(0, currentTime - (25 * 60));
+                const endMins = Math.floor(currentTime / 60).toString().padStart(2, '0');
+                const endSecs = Math.floor(currentTime % 60).toString().padStart(2, '0');
+                const startMins = Math.floor(startTime / 60).toString().padStart(2, '0');
+                const startSecs = Math.floor(startTime % 60).toString().padStart(2, '0');
+                const url = document.getElementById('youtubeUrl').value;
+                const subject = document.getElementById('subjectSelect').value;
+                const level = document.getElementById('levelSelect').value;
 
-            document.getElementById('quizLoadingText').innerText = `Generating ${level} Quiz from ${startMins}:${startSecs} to ${endMins}:${endSecs}...`;
+                document.getElementById('quizLoadingText').innerText = `Generating ${level} Quiz from ${startMins}:${startSecs} to ${endMins}:${endSecs}...`;
 
-            // Check for Custom Transcript first
-            const customTranscript = document.getElementById('customTranscriptInput').value.trim();
-            const ytApiKey = localStorage.getItem('ytTranscriptApiKey');
-            let transcriptText = null;
+                // Check for Custom Transcript first
+                const customTranscript = document.getElementById('customTranscriptInput').value.trim();
+                const ytApiKey = localStorage.getItem('ytTranscriptApiKey');
+                let transcriptText = null;
 
-            let videoId;
-            try { videoId = player.getVideoData().video_id; } catch(e) {}
-            if (!videoId) {
-                const match = url.match(/(?:v=|embed\/|v\/|shorts\/|youtu\.be\/)([\w-]{11})/);
-                videoId = match ? match[1] : null;
-            }
+                let videoId;
+                try { videoId = player.getVideoData().video_id; } catch(e) {}
+                if (!videoId) {
+                    const match = url.match(/(?:v=|embed\/|v\/|shorts\/|youtu\.be\/)([\w-]{11})/);
+                    videoId = match ? match[1] : null;
+                }
 
-            if (customTranscript) {
-                transcriptText = filterTranscriptByTime(customTranscript, startTime, currentTime);
-            } else if (ytApiKey && videoId) {
-                // Priority 2: Use Paid Token
-                const res = await fetch(`/api/yt-transcript-io?videoId=${videoId}&token=${ytApiKey}`);
-                const data = await res.json();
-                if (data.transcript) {
-                    transcriptText = filterTranscriptByTime(data.transcript, startTime, currentTime);
+                if (customTranscript) {
+                    transcriptText = filterTranscriptByTime(customTranscript, startTime, currentTime);
+                } else if (ytApiKey && videoId) {
+                    // Priority 2: Use Paid Token
+                    const res = await fetch(`/api/yt-transcript-io?videoId=${videoId}&token=${ytApiKey}`);
+                    const data = await res.json();
+                    if (data.transcript) {
+                        transcriptText = filterTranscriptByTime(data.transcript, startTime, currentTime);
+                    } else {
+                        // Fallback to Priority 3 if Priority 2 fails
+                        transcriptText = await fetchTranscriptText(videoId, startTime, currentTime);
+                    }
                 } else {
-                    // Fallback to Priority 3 if Priority 2 fails
-                    transcriptText = await fetchTranscriptText(videoId, startTime, currentTime);
+                    // Priority 3: Local Backend
+                    transcriptText = videoId ? await fetchTranscriptText(videoId, startTime, currentTime) : null;
                 }
-            } else {
-                // Priority 3: Local Backend
-                transcriptText = videoId ? await fetchTranscriptText(videoId, startTime, currentTime) : null;
-            }
-            
-            let promptContext = `(URL: ${url})`;
-            if (transcriptText && transcriptText.trim().length > 10) {
-                promptContext = `based on this video transcript:\n"${transcriptText}"`;
-            }
-
-            const prompt = `I am studying a YouTube video for Bank PO / Clerk Exams. The subject is: **${subject}** and target exam level is: **${level}**. Based SPECIFICALLY on the video content from ${startMins}:${startSecs} to ${endMins}:${endSecs} ${promptContext}, generate a 10-question multiple-choice quiz.
-            
-            CRITICAL BANKING EXAM INSTRUCTIONS:
-            1. Exam Pattern & Level: Frame questions strictly matching the **${level}** difficulty. Questions MUST be identical to REAL Bank Exam (IBPS/SBI PO/Clerk) Previous Year Questions (PYQs).
-               - If Prelims: Focus on speed, standard DI (Table, Bar, Pie), and direct arithmetic/logic.
-               - If Mains: Focus on deep logic, twisted DI (Caselet, Mixed, Radar, Missing Data), and multi-step reasoning.
-               - If Prelims + Mains (Mixed): Provide a balanced 50-50 mix of both speed-based (Prelims) and deep logical/twisted (Mains) questions.
-               - Reasoning: Logic-heavy, variable-based, or 'Only a few' syllogism.
-               - English: Contextual reading, error detection.
-               - GA/Computer: Deep statement-based (1 & 2 correct) or core static questions.
-            2. Question Framing (Golden Rules for Quants/DI): ALWAYS use these exact structures: 'Find the ratio of X to Y', 'X is what percent more or less than Y?', 'Find the average of...', or 'Logical Condition: If X increases by...'.
-            3. Options Format: MUST have EXACTLY 5 options (A, B, C, D, E) per question. Use 'None of these' or 'Cannot be determined' where appropriate.
-            4. Explanation Format: Explain the deep logic AND provide a shortcut/trick STRICTLY IN 'ENGLISH'. Do NOT use Hinglish for the quiz.
-            5. Output Format: YOU MUST RETURN ONLY A VALID JSON ARRAY. No markdown, no intro text.
-            
-            JSON Structure Expected:
-            [
-                {
-                    "question": "Question text here?",
-                    "options": ["Option A", "Option B", "Option C", "Option D", "Option E"],
-                    "correctIndex": 0,
-                    "explanation": "Detailed logic and fast-solving Trick in English."
+                
+                let promptContext = `(URL: ${url})`;
+                if (transcriptText && transcriptText.trim().length > 10) {
+                    promptContext = `based on this video transcript:\n"${transcriptText}"`;
                 }
-            ]`;
 
-            try {
+                const prompt = `I am studying a YouTube video for Bank PO / Clerk Exams. The subject is: **${subject}** and target exam level is: **${level}**. Based SPECIFICALLY on the video content from ${startMins}:${startSecs} to ${endMins}:${endSecs} ${promptContext}, generate a 10-question multiple-choice quiz.
+                
+                CRITICAL BANKING EXAM INSTRUCTIONS:
+                1. Exam Pattern & Level: Frame questions strictly matching the **${level}** difficulty. Questions MUST be identical to REAL Bank Exam (IBPS/SBI PO/Clerk) Previous Year Questions (PYQs).
+                   - If Prelims: Focus on speed, standard DI (Table, Bar, Pie), and direct arithmetic/logic.
+                   - If Mains: Focus on deep logic, twisted DI (Caselet, Mixed, Radar, Missing Data), and multi-step reasoning.
+                   - If Prelims + Mains (Mixed): Provide a balanced 50-50 mix of both speed-based (Prelims) and deep logical/twisted (Mains) questions.
+                   - Reasoning: Logic-heavy, variable-based, or 'Only a few' syllogism.
+                   - English: Contextual reading, error detection.
+                   - GA/Computer: Deep statement-based (1 & 2 correct) or core static questions.
+                2. Question Framing (Golden Rules for Quants/DI): ALWAYS use these exact structures: 'Find the ratio of X to Y', 'X is what percent more or less than Y?', 'Find the average of...', or 'Logical Condition: If X increases by...'.
+                3. Options Format: MUST have EXACTLY 5 options (A, B, C, D, E) per question. Use 'None of these' or 'Cannot be determined' where appropriate.
+                4. Explanation Format: Explain the deep logic AND provide a shortcut/trick STRICTLY IN 'ENGLISH'. Do NOT use Hinglish for the quiz.
+                5. Output Format: YOU MUST RETURN ONLY A VALID JSON ARRAY. No markdown, no intro text.
+                
+                JSON Structure Expected:
+                [
+                    {
+                        "question": "Question text here?",
+                        "options": ["Option A", "Option B", "Option C", "Option D", "Option E"],
+                        "correctIndex": 0,
+                        "explanation": "Detailed logic and fast-solving Trick in English."
+                    }
+                ]`;
+
                 // Use gemini-3.1-flash-lite specifically for Quiz as requested by user
                 let rawText = await executeGeminiPrompt(prompt, apiKey, null, "gemini-3.1-flash-lite");
                 // Clean AI response to extract exact JSON
@@ -1176,6 +1175,7 @@
                 quizLoading.style.display = 'none';
                 quizActive.style.display = 'block';
                 renderQuizQuestion();
+
             } catch (err) {
                 quizLoading.innerHTML = `<span style="color: #ef4444; font-weight: bold;">Quiz load nahi ho paya (Sayad error hai): ${err.message}</span>`;
             } finally {
