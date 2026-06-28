@@ -479,13 +479,36 @@
                         const res = await fetch(`/api/title?videoId=${videoId}`);
                         const data = await res.json();
                         
-                        if (data.title && data.title !== 'Unknown Video') {
-                            const prompt = `Act as a Bank Exam Classifier. I have a YouTube video title: "${data.title}".
-                            Classify it strictly into ONE of these exact subjects: "General Banking", "Quantitative Aptitude (Quants)", "Data Interpretation (DI)", "Reasoning Ability", "English Language", "General Awareness (GA)", "Computer Awareness".
-                            Also classify its level into ONE of these exact levels: "Prelims Level", "Mains Level", or "Prelims + Mains (Mixed)".
-                            
-                            Return ONLY a valid JSON object. Do not include any other text or markdown formatting.
-                            {"subject": "Exact Subject Name", "level": "Exact Level Name"}`;
+                        if (data.title && data.title !== 'Unknown Video' && data.title.toLowerCase() !== 'youtube') {
+                            await performAutoDetect(data.title);
+                        }
+                    } catch (e) {
+                        console.error("Auto-detect failed:", e);
+                    } finally {
+                        subjDropdown.style.borderColor = origBorder;
+                        levelDropdown.style.borderColor = origBorder;
+                    }
+                }
+            }, 500); // 0.5 second debounce wait after pasting
+        }
+
+        async function performAutoDetect(title) {
+            const apiKey = document.getElementById('geminiApiKey').value.trim();
+            if (!apiKey) return;
+            const subjDropdown = document.getElementById('subjectSelect');
+            const levelDropdown = document.getElementById('levelSelect');
+            const origBorder = subjDropdown.style.borderColor;
+
+            try {
+                subjDropdown.style.borderColor = "#8b5cf6";
+                levelDropdown.style.borderColor = "#8b5cf6";
+
+                const prompt = `Act as a Bank Exam Classifier. I have a YouTube video title: "${title}".
+                Classify it strictly into ONE of these exact subjects: "General Banking", "Quantitative Aptitude (Quants)", "Data Interpretation (DI)", "Reasoning Ability", "English Language", "General Awareness (GA)", "Computer Awareness".
+                Also classify its level into ONE of these exact levels: "Prelims Level", "Mains Level", or "Prelims + Mains (Mixed)".
+                
+                Return ONLY a valid JSON object. Do not include any other text or markdown formatting.
+                {"subject": "Exact Subject Name", "level": "Exact Level Name"}`;
                             
                             let aiRes = await executeGeminiPrompt(prompt, apiKey);
                             // Robust JSON extraction for chatty models
@@ -497,15 +520,12 @@
                                 if (parsed.subject && parsed.subject !== "Select Subject") subjDropdown.value = parsed.subject;
                                 if (parsed.level) levelDropdown.value = parsed.level;
                             }
-                        }
                     } catch (e) {
                         console.error("Auto-detect failed:", e);
                     } finally {
                         subjDropdown.style.borderColor = origBorder;
                         levelDropdown.style.borderColor = origBorder;
                     }
-                }
-            }, 500); // 0.5 second debounce wait after pasting
         }
 
         function setButtonsLoading(isLoading) {
@@ -688,6 +708,21 @@
         function onYouTubeIframeAPIReady() {
             // Player initialization happens dynamically when URL is entered
         }
+        
+        function onPlayerStateChange(event) {
+            // When video is playing (state 1) and subject is still default, try to auto-detect from player title
+            if (event.data === YT.PlayerState.PLAYING) {
+                const subjDropdown = document.getElementById('subjectSelect');
+                if (subjDropdown.value === "General Banking") {
+                    try {
+                        const videoData = player.getVideoData();
+                        if (videoData && videoData.title && videoData.title.toLowerCase() !== 'youtube') {
+                            performAutoDetect(videoData.title);
+                        }
+                    } catch(e) {}
+                }
+            }
+        }
 
         // Handle Keyboard Shortcuts for Video Seeking and Features
         document.addEventListener('keydown', (e) => {
@@ -817,7 +852,10 @@
                         width: '100%',
                         videoId: videoId,
                         // 'fs': 0 hides native youtube fullscreen button so users use our custom one
-                        playerVars: { 'autoplay': 1, 'rel': 0, 'fs': 0, 'origin': window.location.origin }
+                        playerVars: { 'autoplay': 1, 'rel': 0, 'fs': 0, 'origin': window.location.origin },
+                        events: {
+                            'onStateChange': onPlayerStateChange
+                        }
                     });
                 }
                 
