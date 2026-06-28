@@ -461,7 +461,7 @@
             typingTimer = setTimeout(async () => {
                 const url = document.getElementById('youtubeUrl').value.trim();
                 const apiKey = document.getElementById('geminiApiKey').value.trim();
-                const match = url.match(/(?:v=|embed\/|v\/|shorts\/|youtu\.be\/)([\w-]{11})/);
+                const match = url.match(/(?:v=|embed\/|v\/|shorts\/|live\/|youtu\.be\/)([\w-]{11})/);
                 
                 if (match && match[1] && apiKey) {
                     const videoId = match[1];
@@ -584,8 +584,8 @@
             return rawInput;
         }
 
-        async function executeGeminiPrompt(prompt, apiKey, base64Image = null, model = "gemini-1.5-flash") {
-            let modelToUse = model; // Upgraded Model for larger limits or specific tasks
+        async function executeGeminiPrompt(prompt, apiKey, base64Image = null, model = "gemini-3.1-flash-lite") {
+            let modelToUse = model; // Use the explicitly requested model
             
 
             // Prepare Payload
@@ -1010,7 +1010,7 @@
             let videoId;
             try { videoId = player.getVideoData().video_id; } catch(e) {}
             if (!videoId) {
-                const match = url.match(/(?:v=|embed\/|v\/|shorts\/|youtu\.be\/)([\w-]{11})/);
+                const match = url.match(/(?:v=|embed\/|v\/|shorts\/|live\/|youtu\.be\/)([\w-]{11})/);
                 videoId = match ? match[1] : null;
             }
 
@@ -1052,7 +1052,8 @@
             4. Sections Expected: Start with a 'Topic Overview', then 'Deep Concept Analysis' (step-by-step), followed by 'Shortcut Tricks & Logic', and end with 'Quick Takeaways'. Notes ekdum polished lagne chahiye.`;
 
             try {
-                const rawText = await executeGeminiPrompt(prompt, apiKey);
+                // Use gemini-3.1-flash-lite as requested by user everywhere
+                const rawText = await executeGeminiPrompt(prompt, apiKey, null, "gemini-3.1-flash-lite");
                 // Add a timestamp heading before the generated notes
                 const timeHeader = `\n\n### ⏱ Notes: ${startMins}:${startSecs} se ${endMins}:${endSecs} tak\n`;
                 // Use marked.js to convert Markdown into clean, aligned HTML
@@ -1112,7 +1113,7 @@
                 let videoId;
                 try { videoId = player.getVideoData().video_id; } catch(e) {}
                 if (!videoId) {
-                    const match = url.match(/(?:v=|embed\/|v\/|shorts\/|youtu\.be\/)([\w-]{11})/);
+                    const match = url.match(/(?:v=|embed\/|v\/|shorts\/|live\/|youtu\.be\/)([\w-]{11})/);
                     videoId = match ? match[1] : null;
                 }
 
